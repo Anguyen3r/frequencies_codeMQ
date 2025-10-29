@@ -2,64 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Live Orbs</title>
+  <title>Code MQ — Nebula Orbs</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- Firebase compat SDKs (for Firestore) -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <!-- Canvas background -->
-  <canvas id="bgCanvas"></canvas>
-
-  <!-- Left: Top artists panel toggle -->
-  <div id="uiLeft" class="uiPanel">
-    <button id="openTopBtn" class="cornerBtn">☰ Top Artists</button>
+  <div id="uiTop">
+    <button id="openTopBtn" class="btn">☰ Top Artists</button>
     <div id="topPanel" class="panel hidden">
-      <h3>Top Artists — <span id="panelGenreName">House</span></h3>
+      <h3>Top Artists (selected)</h3>
       <select id="genreSelect"></select>
-      <div id="topList" class="list"></div>
+      <div id="topList" class="topList"></div>
     </div>
   </div>
 
-  <!-- Right: Playlist -->
-  <div id="uiRight" class="uiPanel">
-    <div id="playlistPanel" class="panel">
-      <h3>Playlist</h3>
-      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud URL/URI" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="loadPlaylist" class="smallBtn">Load</button>
-        <button id="clearPlaylist" class="smallBtn">Clear</button>
+  <div id="uiBottom">
+    <div class="playlist panel">
+      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud URL" />
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="loadPlaylist" class="btn small">Load</button>
+        <button id="clearPlaylist" class="btn small">Clear</button>
       </div>
       <div id="embedWrap"></div>
     </div>
   </div>
 
-  <!-- Bottom legend and quick instructions -->
-  <div id="legend" class="panel">
-    <h4>Genres</h4>
-    <ul id="legendList"></ul>
-    <div style="margin-top:8px;font-size:12px;color:#ccc">Click an orb → add favorite artist + dream B2B</div>
-  </div>
+  <div id="legend" class="panel"></div>
 
-  <!-- Orbs container (DOM orbs) -->
-  <div id="orbs"></div>
-
-  <!-- Modal for entering artist + B2B -->
-  <div id="modal" class="modal hidden">
-    <div class="modalCard">
-      <h2 id="modalTitle">Submit Artist</h2>
-      <label>Favorite artist</label>
-      <input id="favArtist" placeholder="Artist name (required)" />
-      <label>Dream B2B (optional)</label>
-      <input id="b2bArtist" placeholder="Another artist they'd like as a b2b" />
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button id="cancelBtn" class="smallBtn light">Cancel</button>
-        <button id="submitBtn" class="smallBtn primary">Submit</button>
+  <!-- Modal -->
+  <div id="modal" class="modal hidden" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true">
+      <button id="closeX" class="closeX" title="Close">✕</button>
+      <h2>Who's your favorite artist?</h2>
+      <p class="muted">(and who would you love to see them B2B with?)</p>
+      <input id="favArtist" placeholder="Favorite artist (required)" />
+      <input id="b2bArtist" placeholder="Dream B2B (optional)" />
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="submitBtn" class="btn primary">Submit</button>
       </div>
     </div>
   </div>
+
+  <!-- canvas mount -->
+  <div id="stage"></div>
 
   <script src="script.js"></script>
 </body>
