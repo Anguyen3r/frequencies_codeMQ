@@ -2,55 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Dream Bubbles</title>
+  <title>Code MQ — Live Orbs</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <!-- OrbitControls (for debugging / camera) -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
-  <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyBZdVNrtitowR79nzceQfCw0DfF7oTTALI",
-    authDomain: "codemq-985f1.firebaseapp.com",
-    projectId: "codemq-985f1",
-    storageBucket: "codemq-985f1.firebasestorage.app",
-    messagingSenderId: "343985560127",
-    appId: "1:343985560127:web:e6f1d93f413617421a368a"
-  };
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- Firebase compat SDKs (for Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <div id="ui">
-    <button id="toggleTop">☰ Top Artists</button>
-    <div id="leftPanel" class="panel hidden">
-      <h3>Top 50 — Select Genre</h3>
-      <select id="genreSelect"></select>
-      <div id="topList"></div>
-    </div>
+  <!-- Canvas background -->
+  <canvas id="bgCanvas"></canvas>
 
+  <!-- Left: Top artists panel toggle -->
+  <div id="uiLeft" class="uiPanel">
+    <button id="openTopBtn" class="cornerBtn">☰ Top Artists</button>
+    <div id="topPanel" class="panel hidden">
+      <h3>Top Artists — <span id="panelGenreName">House</span></h3>
+      <select id="genreSelect"></select>
+      <div id="topList" class="list"></div>
+    </div>
+  </div>
+
+  <!-- Right: Playlist -->
+  <div id="uiRight" class="uiPanel">
     <div id="playlistPanel" class="panel">
       <h3>Playlist</h3>
-      <input id="spotifyInput" placeholder="Paste Spotify embed or playlist URI" />
-      <button id="loadSpotify">Load</button>
-      <div id="spotifyEmbed"></div>
+      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud URL/URI" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="loadPlaylist" class="smallBtn">Load</button>
+        <button id="clearPlaylist" class="smallBtn">Clear</button>
+      </div>
+      <div id="embedWrap"></div>
     </div>
   </div>
 
-  <div id="canvasWrap"></div>
-
-  <div id="legend">
+  <!-- Bottom legend and quick instructions -->
+  <div id="legend" class="panel">
     <h4>Genres</h4>
     <ul id="legendList"></ul>
+    <div style="margin-top:8px;font-size:12px;color:#ccc">Click an orb → add favorite artist + dream B2B</div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Orbs container (DOM orbs) -->
+  <div id="orbs"></div>
+
+  <!-- Modal for entering artist + B2B -->
+  <div id="modal" class="modal hidden">
+    <div class="modalCard">
+      <h2 id="modalTitle">Submit Artist</h2>
+      <label>Favorite artist</label>
+      <input id="favArtist" placeholder="Artist name (required)" />
+      <label>Dream B2B (optional)</label>
+      <input id="b2bArtist" placeholder="Another artist they'd like as a b2b" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="cancelBtn" class="smallBtn light">Cancel</button>
+        <button id="submitBtn" class="smallBtn primary">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
