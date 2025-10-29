@@ -1,63 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Code MQ — Nebula Orbs (Prototype)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code MQ – Artist Bubble Showcase</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Canvas for nebula + stars -->
-  <canvas id="bgCanvas" aria-hidden="true"></canvas>
+  <div id="nebula"></div>
 
-  <!-- Orbs (created by JS) -->
-  <div id="orbLayer" aria-hidden="false"></div>
+  <div class="orb" id="techno" data-genre="Techno"></div>
+  <div class="orb" id="house" data-genre="House"></div>
+  <div class="orb" id="dnb" data-genre="Drum & Bass"></div>
+  <div class="orb" id="dubstep" data-genre="Dubstep"></div>
+  <div class="orb" id="electronic" data-genre="Electronic"></div>
+  <div class="orb" id="mainstream" data-genre="Mainstream"></div>
 
-  <!-- Left: Top artists panel -->
-  <div id="leftUI" class="panel">
-    <button id="toggleLeft" class="smallBtn">☰ Top Artists</button>
-    <div id="leftContent" class="hidden">
-      <h3>Top Artists</h3>
-      <label for="genreSelect">Genre</label>
-      <select id="genreSelect"></select>
-      <div id="topList" class="topList"></div>
+  <div id="prompt" class="hidden">
+    <div class="prompt-content">
+      <button id="closePrompt">✕</button>
+      <h2>Submit Your Favorite Artist</h2>
+      <p>Enter your favorite artist and dream B2B pair:</p>
+      <input id="artistInput" type="text" placeholder="Favorite Artist" />
+      <input id="b2bInput" type="text" placeholder="Dream B2B" />
+      <button id="submitBtn">Submit</button>
     </div>
   </div>
-
-  <!-- Right: Playlist -->
-  <div id="rightUI" class="panel">
-    <h4>Playlist</h4>
-    <input id="playlistInput" placeholder="Paste Spotify or SoundCloud URL" />
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button id="loadPlaylist" class="smallBtn">Load</button>
-      <button id="clearPlaylist" class="smallBtn">Clear</button>
-    </div>
-    <div id="embedWrap" style="margin-top:10px"></div>
-  </div>
-
-  <!-- Legend -->
-  <div id="legend" class="panel">
-    <h4>Genres</h4>
-    <div id="legendList"></div>
-  </div>
-
-  <!-- Modal (prompt) -->
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modalCard">
-      <button id="modalClose" class="modalX" title="Close">✕</button>
-      <h2>Who's your favorite artist?</h2>
-      <p class="muted">(Optionally add who you'd like them B2B with)</p>
-      <input id="artistName" placeholder="Artist name (required)" autocomplete="off" />
-      <input id="b2bName" placeholder="Dream B2B (optional)" autocomplete="off" />
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
-        <button id="modalSubmit" class="primaryBtn">Submit</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Supabase library is optional. If you plan to use Supabase realtime, leave this in.
-       If you won't use Supabase, it's safe to keep or remove. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <script src="script.js"></script>
 </body>
