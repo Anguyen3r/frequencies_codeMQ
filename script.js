@@ -1,401 +1,383 @@
-/* ===========================
-   Code MQ — static + Firestore
-   - background stars + gas
-   - 6 colored semi-transparent orbs
-   - modal to submit artist + b2b
-   - save to Firestore or localStorage
-   - realtime top lists (Firestore) or local compute
-   - Spotify/SoundCloud embed UI
-   =========================== */
-
-/* ---------- CONFIG ----------
-  If you want realtime shared data across users, paste your
-  Firebase config object below. Example:
-  const FIREBASE_CONFIG = {
-    apiKey: "...",
-    authDomain: "yourproject.firebaseapp.com",
-    projectId: "yourproject",
-    storageBucket: "yourproject.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcdef"
-  };
-  If FIREBASE_CONFIG is null, the app uses localStorage fallback.
+/* Nebula Orbs — static client-side build
+   - Three.js scene with nebula layers + stars
+   - 6 colored semi-transparent orbs with orbiting dust
+   - click orb -> modal (no genre shown) that can't auto-dismiss (user can X)
+   - submissions saved to localStorage; counts update top list + orb glow
+   - Spotify / SoundCloud embed loader
 */
-const FIREBASE_CONFIG = null; // <-- PASTE YOUR FIREBASE CONFIG OBJECT HERE
 
-/* ---------- GENRES ---------- */
+// ---------- CONFIG ----------
+const USE_FIRESTORE = false; // set true later if you wire Firestore
+// storage key for local fallback
+const STORAGE_KEY = 'codemq_votes_v2';
+
+// genres + colors (iridescent palette)
 const GENRES = [
-  { id: 'techno', name: 'Hard / Techno', color: '#b23cff' },
-  { id: 'house',  name: 'House', color: '#00d18a' },
-  { id: 'dnb',    name: 'Drum & Bass', color: '#2ec4ff' },
-  { id: 'dub',    name: 'Dubstep', color: '#ff9f1c' },
-  { id: 'elect',  name: 'Electronic', color: '#d645ff' },
-  { id: 'main',   name: 'Mainstream/International', color: '#ffffff' }
+  { id:'techno', name:'Hard / Techno', color:'#c66cff' },
+  { id:'house',  name:'House', color:'#00e2a3' },
+  { id:'dnb',    name:'Drum & Bass', color:'#33d7ff' },
+  { id:'dub',    name:'Dubstep', color:'#ffb86b' },
+  { id:'elect',  name:'Electronic', color:'#d86bff' },
+  { id:'main',   name:'Mainstream/International', color:'#ffffff' }
 ];
 
-/* ---------- DOM refs ---------- */
-const bgCanvas = document.getElementById('bgCanvas');
-const orbsRoot = document.getElementById('orbs');
+// ---------- UI refs ----------
+const stage = document.getElementById('stage');
 const modal = document.getElementById('modal');
-const modalTitle = document.getElementById('modalTitle');
-const favArtistInput = document.getElementById('favArtist');
-const b2bInput = document.getElementById('b2bArtist');
-const cancelBtn = document.getElementById('cancelBtn');
+const favArtist = document.getElementById('favArtist');
+const b2bArtist = document.getElementById('b2bArtist');
 const submitBtn = document.getElementById('submitBtn');
+const closeX = document.getElementById('closeX');
 
 const openTopBtn = document.getElementById('openTopBtn');
 const topPanel = document.getElementById('topPanel');
 const genreSelect = document.getElementById('genreSelect');
-const panelGenreName = document.getElementById('panelGenreName');
 const topList = document.getElementById('topList');
+const panelGenreName = document.querySelector('#topPanel h3');
 
 const playlistInput = document.getElementById('playlistInput');
 const loadPlaylist = document.getElementById('loadPlaylist');
 const clearPlaylist = document.getElementById('clearPlaylist');
 const embedWrap = document.getElementById('embedWrap');
 
-const legendList = document.getElementById('legendList');
+const legend = document.getElementById('legend');
 
-/* ---------- canvas background: stars + gas/dust ---------- */
-const ctx = bgCanvas.getContext('2d');
-function resizeCanvas(){
-  bgCanvas.width = innerWidth * devicePixelRatio;
-  bgCanvas.height = innerHeight * devicePixelRatio;
-  bgCanvas.style.width = innerWidth + 'px';
-  bgCanvas.style.height = innerHeight + 'px';
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-}
-addEventListener('resize', resizeCanvas);
-resizeCanvas();
+let selectedOrbGenre = null; // genre id when opened modal
 
-/* create star field */
-const STAR_COUNT = 900;
-const stars = [];
-for(let i=0;i<STAR_COUNT;i++){
-  stars.push({
-    x: Math.random()*innerWidth,
-    y: Math.random()*innerHeight,
-    r: Math.random()*1.6 + 0.2,
-    alpha: Math.random()*0.9 + 0.1,
-    twinkle: Math.random()*0.02 + 0.002
-  });
-}
+// ---------- Three.js scene ----------
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 6000);
+camera.position.set(0,0,800);
 
-/* create moving gas layers (simple drifting radial gradients) */
-const GAS_LAYERS = [];
-for(let i=0;i<4;i++){
-  GAS_LAYERS.push({
-    x: innerWidth/2 + (Math.random()-0.5)*600,
-    y: innerHeight/2 + (Math.random()-0.5)*400,
-    r: 400 + Math.random()*900,
-    speedX: (Math.random()-0.5)*0.12,
-    speedY: (Math.random()-0.5)*0.08,
-    opacity: 0.04 + Math.random()*0.06,
-    hue: 220 + (Math.random()-0.5)*80
-  });
-}
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.appendChild(renderer.domElement);
 
-let time = 0;
-function drawBackground(dt){
-  time += dt;
-  ctx.clearRect(0,0,innerWidth,innerHeight);
+// orbit controls for debugging (disabled by default)
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enabled = false;
 
-  // dark gradient base
-  const g = ctx.createLinearGradient(0,0,0,innerHeight);
-  g.addColorStop(0, '#02020b');
-  g.addColorStop(1, '#000005');
+// fog and subtle ambient
+scene.fog = new THREE.FogExp2(0x000007, 0.00045);
+const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+scene.add(ambient);
+
+// ---------- Nebula layers (large transparent planes with gradient textures) ----------
+function makeNebulaTexture(hueShift=200, size=1024){
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const cx = size/2, cy = size/2;
+  // radial gradient, multiple stops, hue shift
+  const g = ctx.createRadialGradient(cx, cy, size*0.05, cx, cy, size*0.9);
+  const hue = hueShift + (Math.random()-0.5)*60;
+  g.addColorStop(0, `hsla(${hue}, 85%, 70%, 0.9)`);
+  g.addColorStop(0.2, `hsla(${hue+20}, 80%, 60%, 0.55)`);
+  g.addColorStop(0.5, `hsla(${hue+60}, 70%, 50%, 0.22)`);
+  g.addColorStop(1, `rgba(0,0,0,0)`);
   ctx.fillStyle = g;
-  ctx.fillRect(0,0,innerWidth,innerHeight);
-
-  // gas layers
-  GAS_LAYERS.forEach((gl, idx) => {
-    gl.x += gl.speedX * dt * 0.06;
-    gl.y += gl.speedY * dt * 0.06;
-    const rad = ctx.createRadialGradient(gl.x, gl.y, 0, gl.x, gl.y, gl.r);
-    const color = `hsla(${gl.hue},60%,60%,${gl.opacity})`;
-    rad.addColorStop(0, color);
-    rad.addColorStop(0.4, 'rgba(0,0,0,0.03)');
-    rad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = rad;
-    ctx.fillRect(0,0,innerWidth,innerHeight);
-    ctx.globalCompositeOperation = 'source-over';
-  });
-
-  // stars (twinkle)
-  stars.forEach(s=>{
-    s.alpha += (Math.random()*2-1) * s.twinkle;
-    if(s.alpha < 0.05) s.alpha = 0.05;
-    if(s.alpha > 1) s.alpha = 1;
-    ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
-    ctx.fillRect(s.x, s.y, s.r, s.r);
-  });
-
-  // subtle vignette
-  const vg = ctx.createRadialGradient(innerWidth/2, innerHeight/2, Math.min(innerWidth,innerHeight)/4, innerWidth/2, innerHeight/2, Math.max(innerWidth,innerHeight)/1.1);
-  vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.fillRect(0,0,size,size);
+  // gentle noise overlay
+  const img = ctx.getImageData(0,0,size,size);
+  for(let i=0;i<img.data.length;i+=4){
+    const v = (Math.random()*12 - 6);
+    img.data[i] = Math.min(255, Math.max(0, img.data[i] + v));
+    img.data[i+1] = Math.min(255, Math.max(0, img.data[i+1] + v));
+    img.data[i+2] = Math.min(255, Math.max(0, img.data[i+2] + v));
+  }
+  ctx.putImageData(img,0,0);
+  return new THREE.CanvasTexture(c);
 }
 
-/* ---------- create orbs (DOM) ---------- */
-const orbs = [];
-function createOrbs(){
-  orbsRoot.innerHTML = '';
-  GENRES.forEach((g, i) => {
-    const el = document.createElement('div');
-    el.className = 'orb';
-    el.dataset.genre = g.id;
-    el.dataset.index = i;
-    // colored translucent background
-    el.style.background = `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.85) 0%, ${hexToRgba(g.color,0.28)} 35%, ${hexToRgba(g.color,0.12)} 70%, rgba(0,0,0,0.06) 100%)`;
-    // wisps overlays
-    el.style.setProperty('--wisp1', hexToRgba(g.color,0.12));
-    el.style.setProperty('--wisp2', hexToRgba(g.color,0.06));
-    el.style.boxShadow = `0 20px 60px ${hexToRgba(g.color,0.12)}`;
+const nebulaGroup = new THREE.Group();
+scene.add(nebulaGroup);
+for(let i=0;i<4;i++){
+  const tex = makeNebulaTexture(180 + i*40, 1024);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true, opacity: 0.06 + i*0.03, depthWrite:false, blending:THREE.AdditiveBlending });
+  const geo = new THREE.PlaneGeometry(4000,2000);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set((Math.random()-0.5)*400, (Math.random()-0.5)*300, -900 - i*80);
+  mesh.rotation.z = Math.random()*0.6 - 0.3;
+  mesh.userData = { speedX: (Math.random()-0.5)*0.03, speedY: (Math.random()-0.5)*0.02, rotSpeed: (Math.random()-0.5)*0.001 };
+  nebulaGroup.add(mesh);
+}
 
-    // inner glass and label
-    const glass = document.createElement('div'); glass.className = 'glass';
-    const label = document.createElement('div'); label.className='label'; label.textContent = g.name;
-    el.appendChild(glass); el.appendChild(label);
+// ---------- stars (points) ----------
+const starCount = 2200;
+const starsGeometry = new THREE.BufferGeometry();
+const positions = new Float32Array(starCount * 3);
+const colors = new Float32Array(starCount * 3);
+for(let i=0;i<starCount;i++){
+  positions[i*3] = (Math.random()-0.5) * 5000;
+  positions[i*3+1] = (Math.random()-0.5) * 2500;
+  positions[i*3+2] = -Math.random() * 5000;
+  const c = new THREE.Color(0xffffff);
+  c.offsetHSL(0, 0, Math.random()*0.4 - 0.2);
+  colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+}
+starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+starsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+const starsMaterial = new THREE.PointsMaterial({ size: 1.8, vertexColors:true, transparent:true, opacity:0.95 });
+const starField = new THREE.Points(starsGeometry, starsMaterial);
+scene.add(starField);
 
-    // random initial placement
-    const size = 110 + Math.random()*50;
-    el.style.width = `${size}px`; el.style.height = `${size}px`;
-    el.style.left = `${10 + Math.random()*80}%`;
-    el.style.top = `${10 + Math.random()*75}%`;
+// ---------- orbs (spheres) ----------
+const orbGroup = new THREE.Group();
+scene.add(orbGroup);
 
-    // wisps pseudo elements color via before/after (applied inline)
-    el.style.setProperty('--before-color', hexToRgba(g.color,0.18));
-    el.style.setProperty('--after-color', hexToRgba(g.color,0.08));
-    // give hover pointer events active
-    el.style.pointerEvents = 'auto';
+const ORB_DATA = []; // store {id,mesh,particles,baseScale}
 
-    // attach events
-    el.addEventListener('click', (ev)=> {
-      ev.stopPropagation();
-      openModalForGenre(g);
-    });
-
-    orbsRoot.appendChild(el);
-    orbs.push({ el, meta: g, score:0 });
-    // animate with random CSS key-like motion via requestAnimationFrame
-    animateOrb(el, i);
+function makeOrb(genre, index){
+  // geometry & iridescent-ish material
+  const radius = 60 + Math.random()*30;
+  const geo = new THREE.SphereGeometry(radius, 48, 32);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.32,
+    roughness: 0.05,
+    metalness: 0.2,
+    emissive: new THREE.Color(genre.color).multiplyScalar(0.05),
+    emissiveIntensity: 0.6,
+    envMapIntensity: 0.3,
+    side: THREE.DoubleSide
   });
+  const mesh = new THREE.Mesh(geo, mat);
+
+  // initial ring of dust particles around orb
+  const pcount = 160;
+  const pgeo = new THREE.BufferGeometry();
+  const ppos = new Float32Array(pcount*3);
+  for(let i=0;i<pcount;i++){
+    const a = Math.random()*Math.PI*2;
+    const r = radius*1.55 + Math.random()*60;
+    ppos[i*3]   = Math.cos(a)*r + (Math.random()-0.5)*10;
+    ppos[i*3+1] = Math.sin(a)*r*0.6 + (Math.random()-0.5)*8;
+    ppos[i*3+2] = (Math.random()-0.5)*20;
+  }
+  pgeo.setAttribute('position', new THREE.BufferAttribute(ppos,3));
+  const pmat = new THREE.PointsMaterial({ size: 4, color: genre.color, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false });
+  const particles = new THREE.Points(pgeo, pmat);
+  mesh.add(particles);
+
+  // soft halo sprite:
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+  const cx = canvas.getContext('2d');
+  const g = cx.createRadialGradient(128,128,10,128,128,128);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.2, hexToRgba(genre.color, 0.5));
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  cx.fillStyle = g; cx.fillRect(0,0,256,256);
+  const spriteTex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: spriteTex, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(radius*6, radius*6, 1);
+  mesh.add(sprite);
+
+  // position in ring layout
+  const angle = (index / GENRES.length) * Math.PI*2;
+  const ringR = 420;
+  mesh.position.set(Math.cos(angle)*ringR, Math.sin(angle)*ringR*0.6, -index*10);
+  mesh.userData = { genreId: genre.id, index, radius };
+
+  orbGroup.add(mesh);
+  ORB_DATA.push({ id: genre.id, mesh, particles, sprite, baseRadius: radius });
 }
 
-/* per-orb subtle motion using requestAnimationFrame */
-function animateOrb(el, idx){
-  const startX = parseFloat(el.style.left);
-  const startY = parseFloat(el.style.top);
-  const driftX = (Math.random()-0.5)*6;
-  const driftY = (Math.random()-0.5)*6;
-  const jitter = () => {
-    const t = performance.now()/1000 + idx;
-    const x = startX + Math.sin(t*0.6 + idx)*3 + Math.cos(t*0.3 + idx*1.3)*2 + driftX;
-    const y = startY + Math.cos(t*0.5 + idx)*4 + Math.sin(t*0.25 + idx*0.9)*2 + driftY;
-    el.style.left = `${x}%`;
-    el.style.top = `${y}%`;
-    requestAnimationFrame(jitter);
-  };
-  jitter();
-}
+// create all orbs
+GENRES.forEach((g, idx)=> makeOrb(g, idx));
 
-/* ---------- modal handling ---------- */
-let currentGenre = null;
-function openModalForGenre(genre){
-  currentGenre = genre;
-  modalTitle.textContent = `Add favorite artist — ${genre.name}`;
-  favArtistInput.value = '';
-  b2bInput.value = '';
+// raycaster
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+function onClick(e){
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ( (e.clientX - rect.left) / rect.width ) * 2 - 1;
+  mouse.y = - ( (e.clientY - rect.top) / rect.height ) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(orbGroup.children, true);
+  if(intersects.length){
+    let obj = intersects[0].object;
+    // climb to parent mesh
+    while(obj && !obj.userData.genreId) obj = obj.parent;
+    if(obj && obj.userData.genreId){
+      selectedOrbGenre = obj.userData.genreId;
+      openModal();
+    }
+  }
+}
+renderer.domElement.addEventListener('pointerdown', onClick);
+
+// ---------- modal logic ----------
+function openModal(){
   modal.classList.remove('hidden');
-  favArtistInput.focus();
+  modal.setAttribute('aria-hidden', 'false');
+  favArtist.value = '';
+  b2bArtist.value = '';
+  favArtist.focus();
 }
-cancelBtn.addEventListener('click', ()=> modal.classList.add('hidden'));
-submitBtn.addEventListener('click', async ()=> {
-  const artist = favArtistInput.value.trim();
-  const b2b = b2bInput.value.trim();
-  if(!artist){ favArtistInput.focus(); return; }
-  // save to backend or local
-  await saveVote(currentGenre.id, artist, b2b);
+function closeModal(){
   modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+closeX.addEventListener('click', closeModal);
+
+// submit saves
+submitBtn.addEventListener('click', async ()=>{
+  const artist = favArtist.value.trim();
+  const b2b = b2bArtist.value.trim();
+  if(!artist) { favArtist.focus(); return; }
+  await saveVote(selectedOrbGenre, artist, b2b);
+  closeModal();
 });
 
-/* ---------- storage: Firestore or localStorage fallback ---------- */
-let db = null;
-let useFirestore = false;
-if(FIREBASE_CONFIG){
-  try{
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    useFirestore = true;
-    console.log('Firestore enabled');
-  }catch(e){ console.warn('Firebase init failed', e); useFirestore=false; }
-}
-
-async function saveVote(genreId, artist, b2b){
-  const payload = { genre: genreId, artist: artist, b2b: b2b || '', ts: firebase && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : Date.now() };
-  if(useFirestore && db){
-    try{
-      await db.collection('artistVotes').add(payload);
-    }catch(e){
-      console.error('Firestore write error', e);
-      saveLocal(genreId, artist, b2b);
-    }
-  } else {
-    saveLocal(genreId, artist, b2b);
+// click outside modal doesn't auto-close to avoid accidental dismiss — but X will close
+modal.addEventListener('click', (e)=>{
+  if(e.target === modal) {
+    // do nothing (force explicit X or submit)
   }
-  // refresh local UI
-  computeAndRenderTop();
-}
+});
 
-/* local fallback save */
-function saveLocal(genreId, artist, b2b){
-  const key = 'codemq_votes_v1';
-  const raw = JSON.parse(localStorage.getItem(key) || '{}');
-  raw[genreId] = raw[genreId] || [];
-  raw[genreId].push({artist, b2b, ts:Date.now()});
-  localStorage.setItem(key, JSON.stringify(raw));
+// ---------- storage (local fallback) ----------
+function saveLocal(genre, artist, b2b){
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  data[genre] = data[genre] || [];
+  data[genre].push({ artist, b2b, ts: Date.now() });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
-
-/* ---------- compute top artists and render ---------- */
-async function readAllVotes(){
-  if(useFirestore && db){
-    // read all votes
-    const snap = await db.collection('artistVotes').get();
-    const out = {};
-    snap.forEach(doc => {
-      const v = doc.data();
-      if(!v || !v.genre) return;
-      out[v.genre] = out[v.genre] || [];
-      out[v.genre].push({artist:v.artist || '', b2b:v.b2b || '', ts: v.ts ? v.ts.toMillis ? v.ts.toMillis() : v.ts : Date.now()});
-    });
-    return out;
+async function saveVote(genre, artist, b2b){
+  // placeholder for Firestore if later integrated
+  if(USE_FIRESTORE){
+    // implement Firestore writes later
   } else {
-    const key = 'codemq_votes_v1';
-    return JSON.parse(localStorage.getItem(key) || '{}');
+    saveLocal(genre, artist, b2b);
+    computeAndRenderTop();
   }
 }
 
+// ---------- compute top from storage & update orb glow ----------
+async function readAllLocal(){
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+}
 async function computeAndRenderTop(){
-  const raw = await readAllVotes();
-  // compute counts per genre
+  const raw = await readAllLocal();
   const counts = {};
-  GENRES.forEach(g=> counts[g.id] = {});
-  Object.keys(raw).forEach(genreId=>{
-    const arr = raw[genreId] || [];
-    arr.forEach(r=>{
-      const name = (r.artist || '').trim();
+  GENRES.forEach(g=> counts[g.id]={});
+  Object.keys(raw).forEach(genre=>{
+    (raw[genre]||[]).forEach(r=>{
+      const name = (r.artist||'').trim();
       if(!name) return;
-      counts[genreId][name] = (counts[genreId][name] || 0) + 1;
+      counts[genre][name] = (counts[genre][name]||0) + 1;
     });
   });
-  // convert to sorted arrays
-  const topPerGenre = {};
-  GENRES.forEach(g=>{
-    const map = counts[g.id] || {};
-    const list = Object.keys(map).map(a=>({artist:a,count:map[a]})).sort((a,b)=>b.count-a.count);
-    topPerGenre[g.id] = list;
-    // update orb glow/scale
-    const orbObj = orbs.find(o=>o.meta.id===g.id);
+  // update orbs
+  ORB_DATA.forEach(o=>{
+    const list = Object.keys(counts[o.id]||{}).map(a=>({artist:a,count:counts[o.id][a]})).sort((a,b)=>b.count-a.count);
     const topCount = list[0] ? list[0].count : 0;
-    if(orbObj){
-      const glow = Math.min(1.8, 0.4 + Math.log10(1+topCount)*0.25);
-      orbObj.el.style.boxShadow = `0 24px ${30 + glow*40}px ${hexToRgba(g.color, 0.12 + glow*0.08)}`;
-      const scale = 1 + Math.min(0.45, Math.log10(1+topCount)*0.06);
-      orbObj.el.style.transform = `scale(${scale})`;
-    }
+    const glow = Math.min(3.0, 0.4 + Math.log10(1+topCount)*0.6);
+    const color = GENRES.find(g=>g.id===o.id).color;
+    o.mesh.material.emissive = new THREE.Color(color);
+    o.mesh.material.emissiveIntensity = glow * 0.35;
+    const scale = 1 + Math.min(0.6, Math.log10(1+topCount)*0.12);
+    o.mesh.scale.set(scale,scale,scale);
   });
-
-  // render panel for selected genre
+  // render panel for currently selected genre
   const sel = genreSelect.value || GENRES[0].id;
-  panelGenreName.textContent = GENRES.find(g=>g.id===sel).name;
-  const arr = topPerGenre[sel] || [];
+  const arr = Object.keys(counts[sel]||{}).map(a=>({artist:a,count:counts[sel][a]})).sort((a,b)=>b.count-a.count);
   let html = '';
-  if(arr.length === 0) html = '<div style="color:#9aa">No submissions yet — be the first.</div>';
+  if(arr.length===0) html = '<div style="color:#9aa">No submissions yet</div>';
   else{
-    const topN = Math.min(50, arr.length);
-    for(let i=0;i<topN;i++){
+    for(let i=0;i<Math.min(50,arr.length);i++){
       const it = arr[i];
-      html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03)"><div>${i+1}. ${escapeHtml(it.artist)}</div><div style="opacity:0.8">${it.count}</div></div>`;
+      html += `<div class="row">${i+1}. ${escapeHtml(it.artist)} <span style="opacity:.8">${it.count}</span></div>`;
     }
   }
   topList.innerHTML = html;
 }
 
-/* ---------- realtime listener (Firestore) ---------- */
-if(useFirestore && db){
-  db.collection('artistVotes').onSnapshot(()=> {
-    computeAndRenderTop();
-  });
-}
-
-/* ---------- UI wiring ---------- */
-openTopBtn.addEventListener('click', ()=> {
-  topPanel.classList.toggle('hidden');
+// ---------- UI wiring ----------
+openTopBtn.addEventListener('click', ()=> topPanel.classList.toggle('hidden'));
+GENRES.forEach(g=>{
+  const o = document.createElement('option'); o.value=g.id; o.textContent=g.name; genreSelect.appendChild(o);
+  const tag = document.createElement('div'); tag.className='genreTag'; tag.textContent=g.name; tag.style.background = hexToRgba(g.color,0.88); legend.appendChild(tag);
 });
 genreSelect.addEventListener('change', computeAndRenderTop);
 
-/* populate genre select & legend */
-GENRES.forEach(g=>{
-  const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
-  const li = document.createElement('li'); li.textContent = g.name; li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.02), ${hexToRgba(g.color,0.18)})`; legendList.appendChild(li);
-});
-
-/* playlist embed loader */
+// ---------- playlist embed ----------
 loadPlaylist.addEventListener('click', ()=>{
   const v = playlistInput.value.trim();
-  if(!v){ embedWrap.innerHTML=''; return; }
-  // Spotify URI
+  if(!v){ embedWrap.innerHTML = ''; return; }
   if(v.startsWith('spotify:playlist:')){
     const id = v.split(':').pop();
-    embedWrap.innerHTML = `<iframe src="https://open.spotify.com/embed/playlist/${id}" width="100%" height="92" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+    embedWrap.innerHTML = `<iframe src="https://open.spotify.com/embed/playlist/${id}" allow="encrypted-media"></iframe>`;
     return;
   }
-  // Spotify share url
   if(v.includes('open.spotify.com')){
-    const u = v.replace('/playlist/','/embed/playlist/').replace('open.spotify.com','open.spotify.com/embed');
-    embedWrap.innerHTML = `<iframe src="${u}" width="100%" height="92" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+    const u = v.replace('open.spotify.com','open.spotify.com/embed');
+    embedWrap.innerHTML = `<iframe src="${u}" allow="encrypted-media"></iframe>`;
     return;
   }
-  // SoundCloud example (url to widget)
   if(v.includes('soundcloud.com')){
-    // use SoundCloud oEmbed widget (simple iframe)
-    embedWrap.innerHTML = `<iframe width="100%" height="120" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(v)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false"></iframe>`;
+    embedWrap.innerHTML = `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(v)}&color=%23ff5500&auto_play=false" allow="autoplay"></iframe>`;
     return;
   }
-  embedWrap.innerHTML = `<div style="color:#f88">Unrecognized playlist URL. Use Spotify or SoundCloud link.</div>`;
+  embedWrap.innerHTML = `<div style="color:#f88">Unrecognized URL</div>`;
 });
 clearPlaylist.addEventListener('click', ()=>{ playlistInput.value=''; embedWrap.innerHTML=''; });
 
-/* ---------- utilities ---------- */
-function hexToRgba(hex, alpha=1){
+// ---------- helpers ----------
+function hexToRgba(hex, a=1){
   const c = hex.replace('#','');
   const r = parseInt(c.substring(0,2),16);
   const g = parseInt(c.substring(2,4),16);
   const b = parseInt(c.substring(4,6),16);
-  return `rgba(${r},${g},${b},${alpha})`;
+  return `rgba(${r},${g},${b},${a})`;
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-/* ---------- animation loop ---------- */
+// ---------- animate loop ----------
 let last = performance.now();
-function loop(now){
-  const dt = now - last;
+function animate(now){
+  const dt = (now - last)/16.666; // approx frames
   last = now;
-  drawBackground(dt);
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
+  // nebula drift
+  nebulaGroup.children.forEach((m, i)=>{
+    m.position.x += m.userData.speedX * dt;
+    m.position.y += m.userData.speedY * dt;
+    m.rotation.z += m.userData.rotSpeed * dt;
+  });
+  // star twinkle: slightly change material opacity (simulate)
+  starsMaterial.opacity = 0.9 + Math.sin(now*0.0008)*0.05;
 
-/* ---------- init ---------- */
-createOrbs();
+  // rotate particle rings for each orb
+  ORB_DATA.forEach((o, idx)=>{
+    const t = now * 0.001;
+    o.particles.rotation.z = t * (0.12 + idx*0.02);
+    // small bobbing
+    o.mesh.position.x += Math.sin(t*0.2 + idx) * 0.03;
+    o.mesh.position.y += Math.cos(t*0.17 + idx*0.5) * 0.04;
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ---------- init ----------
 computeAndRenderTop();
 
-/* ---------- click outside to close modal ---------- */
-document.addEventListener('click', (e)=>{
-  if(!modal.classList.contains('hidden') && !modal.querySelector('.modalCard').contains(e.target)) {
-    modal.classList.add('hidden');
-  }
+// ---------- resize ----------
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
 });
+
+// ---------- note: add Firestore later ----------
+/* To add real-time DB later:
+   - create Supabase or Firebase project
+   - wire saves in saveVote(genre,artist,b2b) to remote DB
+   - add listener to update counts and call computeAndRenderTop()
+*/
+
