@@ -1,0 +1,25 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #090909, #000);
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  animation: float 10s infinite ease-in-out;
+}
+
+.bubble:hover {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-40px) rotate(180deg); }
+}
