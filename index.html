@@ -1,53 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Code MQ — Nebula Orbs</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artist Showcase</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <div id="uiTop">
-    <button id="openTopBtn" class="btn">☰ Top Artists</button>
-    <div id="topPanel" class="panel hidden">
-      <h3>Top Artists (selected)</h3>
-      <select id="genreSelect"></select>
-      <div id="topList" class="topList"></div>
-    </div>
+  <canvas id="space"></canvas>
+
+  <div class="orb-container">
+    <div class="orb" data-genre="Hard/Techno"></div>
+    <div class="orb" data-genre="House"></div>
+    <div class="orb" data-genre="Drum & Bass"></div>
+    <div class="orb" data-genre="Dubstep"></div>
+    <div class="orb" data-genre="Electronic"></div>
+    <div class="orb" data-genre="Mainstream/International"></div>
   </div>
 
-  <div id="uiBottom">
-    <div class="playlist panel">
-      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud URL" />
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="loadPlaylist" class="btn small">Load</button>
-        <button id="clearPlaylist" class="btn small">Clear</button>
-      </div>
-      <div id="embedWrap"></div>
+  <div class="prompt-modal" id="promptModal">
+    <div class="prompt-content">
+      <button class="close-btn" id="closeBtn">✕</button>
+      <h2>Your Favorite Artist</h2>
+      <input type="text" id="artistInput" placeholder="Enter artist name" />
+      <input type="text" id="b2bInput" placeholder="Who for B2B?" />
+      <button id="submitBtn">Submit</button>
     </div>
   </div>
-
-  <div id="legend" class="panel"></div>
-
-  <!-- Modal -->
-  <div id="modal" class="modal hidden" aria-hidden="true">
-    <div class="modalCard" role="dialog" aria-modal="true">
-      <button id="closeX" class="closeX" title="Close">✕</button>
-      <h2>Who's your favorite artist?</h2>
-      <p class="muted">(and who would you love to see them B2B with?)</p>
-      <input id="favArtist" placeholder="Favorite artist (required)" />
-      <input id="b2bArtist" placeholder="Dream B2B (optional)" />
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-        <button id="submitBtn" class="btn primary">Submit</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- canvas mount -->
-  <div id="stage"></div>
 
   <script src="script.js"></script>
 </body>
