@@ -1,47 +1,31 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* Basic layout */
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial; background:#000010;color:#fff}
+#canvasWrap{position:fixed;inset:0;z-index:0}
 
-body {
-  height: 100vh;
-  overflow: hidden;
-  background: radial-gradient(circle at 20% 20%, #0b0014, #12001a, #1e0029);
-  background-image: url("https://cdn.pixabay.com/photo/2018/04/30/10/44/nebula-3364680_1280.jpg");
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* UI */
+#ui{position:fixed;left:12px;top:12px;z-index:10;display:flex;flex-direction:column;gap:10px}
+#toggleTop{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
+.panel{background:rgba(6,8,15,0.6);backdrop-filter:blur(6px);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);width:320px;max-height:70vh;overflow:auto}
+.hidden{display:none}
+#genreSelect{width:100%;padding:6px;margin-bottom:8px;border-radius:6px;border:none}
+#topList{font-size:13px}
+#topList .row{display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)}
+#topList .row strong{color:#fff}
+#topList .score{opacity:0.75}
 
-.container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-}
+/* Playlist area */
+#playlistPanel{position:fixed;right:12px;top:12px;width:300px;z-index:10}
+#spotifyInput{width:100%;padding:8px;border-radius:6px;border:none;margin-bottom:6px}
+#loadSpotify{padding:8px;border-radius:6px;border:none;background:#1db954;color:#fff;cursor:pointer}
+#spotifyEmbed iframe{width:100%;height:80px;border-radius:6px;border:none;margin-top:8px}
 
-.bubble {
-  position: absolute;
-  border-radius: 50%;
-  width: 120px;
-  height: 120px;
-  opacity: 0.8;
-  backdrop-filter: blur(3px);
-  animation: float 10s infinite ease-in-out alternate;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
-}
+/* legend */
+#legend{position:fixed;right:12px;bottom:12px;background:rgba(0,0,0,0.45);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);z-index:10}
+#legendList{list-style:none;padding:0;margin:0;display:flex;gap:8px;flex-wrap:wrap}
+#legendList li{padding:6px 10px;border-radius:20px;background:rgba(255,255,255,0.04);font-size:13px}
 
-#techno { background: radial-gradient(circle, rgba(255,0,0,0.7), rgba(0,0,0,0.4)); }
-#house { background: radial-gradient(circle, rgba(255,165,0,0.7), rgba(0,0,0,0.4)); }
-#dnb { background: radial-gradient(circle, rgba(0,255,0,0.7), rgba(0,0,0,0.4)); }
-#dubstep { background: radial-gradient(circle, rgba(0,0,255,0.7), rgba(0,0,0,0.4)); }
-#electronic { background: radial-gradient(circle, rgba(255,0,255,0.7), rgba(0,0,0,0.4)); }
-#mainstream { background: radial-gradient(circle, rgba(0,255,255,0.7), rgba(0,0,0,0.4)); }
-
-@keyframes float {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(20px, -30px) scale(1.05); }
-  100% { transform: translate(-20px, 20px) scale(1); }
+/* small responsiveness */
+@media (max-width:760px){
+  .panel{width:85vw}
+  #playlistPanel{width:85vw;right:8px}
 }
