@@ -1,8 +1,8 @@
-/* Bubble UI — minimal, performant, responsive
-   - localStorage persistence (vote data)
-   - smooth drifting bubbles
-   - accessible modal with X close
-   - top artists panel (computed locally)
+/* script.js
+   - Floating bubbles + nebula background (CSS)
+   - Click bubble => anchored prompt that orbits the bubble
+   - Saves to localStorage and updates local Top counts
+   - Mobile-friendly + keyboard accessible
 */
 
 const GENRES = [
@@ -14,159 +14,219 @@ const GENRES = [
   { id: 'main',   label: 'Mainstream / International' }
 ];
 
-const STORAGE_KEY = 'codemq_votes_v4';
+const STORAGE_KEY = 'codemq_votes_v5';
 
-// DOM refs
+/* ========== DOM refs ========== */
 const stage = document.getElementById('stage');
-const nebula = document.getElementById('nebula');
-
-const modal = document.getElementById('modal');
-const modalClose = document.getElementById('modalClose');
-const voteForm = document.getElementById('voteForm');
-const artistInput = document.getElementById('artistInput');
-const b2bInput = document.getElementById('b2bInput');
-const whyInput = document.getElementById('whyInput');
-const cancelBtn = document.getElementById('cancelBtn');
-
 const topToggle = document.getElementById('topToggle');
 const topPanel = document.getElementById('topPanel');
 const genreSelect = document.getElementById('genreSelect');
 const topList = document.getElementById('topList');
 
-// state
 let bubbles = [];
-let activeGenre = null;
+let activePrompt = null;      // {el, anchorEl, angle, radius, raf}
+let votesCache = null;
 
-// create bubbles DOM
+/* ---------- initialize UI ---------- */
+function init(){
+  createBubbles();
+  populateTopSelect();
+  computeAndRenderTop();
+  topToggle.addEventListener('click', toggleTopPanel);
+  window.addEventListener('resize', onResize);
+  // accessibility: close prompt on Escape
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && activePrompt) closeActivePrompt();
+  });
+}
+init();
+
+/* ---------- create bubbles ---------- */
 function createBubbles(){
   stage.innerHTML = '';
   bubbles = [];
-  GENRES.forEach((g, i) => {
+  GENRES.forEach((g, idx) => {
     const el = document.createElement('button');
     el.className = 'bubble';
     el.setAttribute('data-genre', g.id);
-    el.setAttribute('aria-label', g.label + ' bubble');
-    el.setAttribute('type', 'button');
+    el.setAttribute('aria-label', g.label);
+    el.type = 'button';
     el.innerHTML = `<span class="glass" aria-hidden="true"></span><span class="label">${g.label}</span>`;
-    // initial size and position
-    const size = 100 + Math.round(Math.random()*48);
+
+    // initial random size + position
+    const size = 100 + Math.round(Math.random()*44);
     el.style.width = size + 'px';
     el.style.height = size + 'px';
     el.style.left = (8 + Math.random()*84) + '%';
-    el.style.top = (10 + Math.random()*78) + '%';
-    // append
-    stage.appendChild(el);
-    // pointer events enabled
+    el.style.top  = (8 + Math.random()*82) + '%';
+
+    // attach click
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      activeGenre = g.id; // store genre (hidden to user)
-      openModal();
+      openPromptAnchored(el, g.id);
     });
+
+    stage.appendChild(el);
     bubbles.push({ el, genre: g, size, vx: (Math.random()-0.5)*0.02, vy: (Math.random()-0.5)*0.02 });
     animateBubble(bubbles[bubbles.length-1]);
   });
 }
 
-// gentle drifting animation using requestAnimationFrame (high perf)
+/* ---------- bubble gentle drift ---------- */
 function animateBubble(obj){
-  (function tick(){
+  (function loop(){
     const el = obj.el;
     const t = performance.now() / 1000;
-    // sin/cos drift (smooth, deterministic)
     const dx = Math.sin(t*0.6 + obj.size) * 0.12;
     const dy = Math.cos(t*0.5 + obj.size*0.8) * 0.14;
     const left = clamp(percent(el.style.left) + dx, 2, 92);
-    const top = clamp(percent(el.style.top) + dy, 4, 92);
+    const top  = clamp(percent(el.style.top)  + dy, 4, 92);
     el.style.left = left + '%';
-    el.style.top = top + '%';
-    requestAnimationFrame(tick);
+    el.style.top  = top  + '%';
+    requestAnimationFrame(loop);
   }());
 }
 function percent(v){ return parseFloat(v || '0'); }
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-// modal open/close
-function openModal(){
-  modal.classList.remove('hidden');
-  modal.setAttribute('aria-hidden', 'false');
-  artistInput.value = '';
-  b2bInput.value = '';
-  whyInput.value = '';
-  artistInput.focus();
-}
-function closeModal(){
-  modal.classList.add('hidden');
-  modal.setAttribute('aria-hidden', 'true');
-  activeGenre = null;
-}
-modalClose.addEventListener('click', closeModal);
-cancelBtn.addEventListener('click', closeModal);
+/* ---------- anchored prompt logic ---------- */
+function openPromptAnchored(anchorEl, genreId){
+  // close existing
+  if(activePrompt) closeActivePrompt();
 
-// form submit
-voteForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const artist = artistInput.value.trim();
-  if (!artist) { artistInput.focus(); return; }
-  const b2b = b2bInput.value.trim();
-  const why = whyInput.value.trim();
-  saveVote(activeGenre, artist, b2b, why);
-  closeModal();
-});
+  // create prompt DOM
+  const p = document.createElement('div');
+  p.className = 'prompt';
+  p.innerHTML = `
+    <button class="closeX" aria-label="Close prompt">✕</button>
+    <h3>Who's your favorite artist?</h3>
+    <p class="muted">Optional: dream B2B & why</p>
+    <input class="artist" placeholder="Favorite artist (required)" />
+    <input class="b2b" placeholder="Dream B2B (optional)" />
+    <textarea class="why" rows="2" placeholder="Why (optional)"></textarea>
+    <div class="actions">
+      <button class="btnLight cancel">Cancel</button>
+      <button class="btnPrimary submit">Submit</button>
+    </div>
+  `;
+  document.body.appendChild(p);
 
-// storage helpers
-function readVotes(){
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  } catch (e) {
-    return {};
+  // ensure pointer events allowed
+  p.style.pointerEvents = 'auto';
+
+  // button wiring
+  p.querySelector('.closeX').addEventListener('click', ()=> closeActivePrompt());
+  p.querySelector('.cancel').addEventListener('click', ()=> closeActivePrompt());
+  p.querySelector('.submit').addEventListener('click', async () => {
+    const artist = p.querySelector('.artist').value.trim();
+    if(!artist){ p.querySelector('.artist').focus(); return; }
+    const b2b = p.querySelector('.b2b').value.trim();
+    const why = p.querySelector('.why').value.trim();
+    await saveVote(genreId, artist, b2b, why);
+    // brief feedback (subtle scale)
+    p.animate([{ transform:'scale(1)' }, { transform:'scale(0.98)' }, { transform:'scale(1)' }], { duration:220 });
+    closeActivePrompt();
+  });
+
+  // position: compute anchor center
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const anchorCenter = { x: anchorRect.left + anchorRect.width/2, y: anchorRect.top + anchorRect.height/2 };
+
+  // orbit parameters
+  const radius = Math.max(anchorRect.width, 110) * 0.9; // px
+  let angle = Math.random() * Math.PI * 2;
+
+  // animate orbit
+  let rafId = null;
+  function orbitTick(){
+    angle += 0.012; // speed
+    const x = anchorCenter.x + Math.cos(angle) * radius - p.offsetWidth/2;
+    const y = anchorCenter.y + Math.sin(angle) * radius - p.offsetHeight/2;
+    p.style.left = `${x}px`;
+    p.style.top  = `${y}px`;
+    // subtle rotation facing camera
+    p.style.transform = `rotate(${Math.sin(angle)*3}deg)`;
+    rafId = requestAnimationFrame(orbitTick);
   }
+  // initial placement slightly offset
+  p.style.position = 'fixed';
+  p.style.left = `${anchorCenter.x + radius - p.offsetWidth/2}px`;
+  p.style.top  = `${anchorCenter.y - p.offsetHeight/2}px`;
+  // start orbit
+  rafId = requestAnimationFrame(orbitTick);
+
+  // store active prompt
+  activePrompt = { el: p, anchorEl, angle, radius, rafId };
+  // focus first input
+  setTimeout(()=> p.querySelector('.artist').focus(), 120);
+
+  // while prompt open, highlight anchor bubble
+  anchorEl.style.transform = 'scale(1.08)';
+  anchorEl.style.boxShadow = `0 40px 110px ${colorWithAlpha(getGenreColor(genreId), 0.18)}`;
+}
+
+function closeActivePrompt(){
+  if(!activePrompt) return;
+  const { el, anchorEl, rafId } = activePrompt;
+  // restore anchor styles
+  if(anchorEl){
+    anchorEl.style.transform = '';
+    anchorEl.style.boxShadow = '';
+  }
+  cancelAnimationFrame(rafId);
+  el.remove();
+  activePrompt = null;
+}
+
+/* ---------- storage & top logic ---------- */
+function readVotes(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch(e){ return {}; }
 }
 function saveLocal(genre, artist, b2b, why){
   const raw = readVotes();
   raw[genre] = raw[genre] || [];
   raw[genre].push({ artist, b2b: b2b || '', why: why || '', ts: Date.now() });
-  // cap length for performance
-  if (raw[genre].length > 5000) raw[genre].splice(0, raw[genre].length - 5000);
+  if(raw[genre].length > 5000) raw[genre].splice(0, raw[genre].length - 5000);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
 }
-function saveVote(genre, artist, b2b, why){
+async function saveVote(genre, artist, b2b, why){
   // local-only for now
   saveLocal(genre, artist, b2b, why);
-  computeTopAndVisuals();
+  await computeAndRenderTop();
 }
 
-// compute top artists and update bubble glows
-function computeTopAndVisuals(){
-  const data = readVotes();
-  // count per genre
+/* compute top artists & update bubble visuals */
+async function computeAndRenderTop(){
+  const raw = readVotes();
   const counts = {};
-  GENRES.forEach(g => counts[g.id] = {});
-  Object.keys(data).forEach(genreId => {
-    (data[genreId] || []).forEach(r => {
-      const name = (r.artist || '').trim();
-      if (!name) return;
-      counts[genreId][name] = (counts[genreId][name] || 0) + 1;
+  GENRES.forEach(g=> counts[g.id] = {});
+  Object.keys(raw).forEach(genreId=>{
+    (raw[genreId]||[]).forEach(r=>{
+      const name = (r.artist||'').trim();
+      if(!name) return;
+      counts[genreId][name] = (counts[genreId][name]||0) + 1;
     });
   });
 
-  // update bubbles (scale/glow)
-  bubbles.forEach(b => {
+  // update bubbles scale/glow
+  bubbles.forEach(b=>{
     const map = counts[b.genre.id] || {};
-    const sorted = Object.keys(map).map(a => ({ artist: a, count: map[a] })).sort((a,b)=>b.count-a.count);
-    const topCount = sorted[0] ? sorted[0].count : 0;
+    const list = Object.keys(map).map(a=>({artist:a,count:map[a]})).sort((a,b)=>b.count-a.count);
+    const topCount = list[0] ? list[0].count : 0;
     const glow = Math.min(3.2, 0.3 + Math.log10(1 + topCount) * 0.8);
     const scale = 1 + Math.min(0.6, Math.log10(1 + topCount) * 0.11);
     b.el.style.transform = `scale(${scale})`;
-    b.el.style.boxShadow = `0 24px ${26 + glow*36}px ${colorWithAlpha(getGenreColor(b.genre.id), 0.12 + glow*0.06)}`;
+    b.el.style.boxShadow = `0 28px ${26 + glow*36}px ${colorWithAlpha(getGenreColor(b.genre.id), 0.12 + glow*0.06)}`;
   });
 
-  // update top panel for selected genre
+  // render top list for selected genre
   const sel = genreSelect.value || GENRES[0].id;
-  const arr = Object.keys(counts[sel] || {}).map(a => ({ artist: a, count: counts[sel][a] })).sort((a,b)=>b.count-a.count);
+  const arr = Object.keys(counts[sel] || {}).map(a=>({artist:a,count:counts[sel][a]})).sort((a,b)=>b.count-a.count);
   let html = '';
-  if (arr.length === 0) html = `<div style="color:#9aa">No submissions yet — be the first!</div>`;
+  if(arr.length === 0) html = '<div style="color:#9aa">No submissions yet — be the first!</div>';
   else {
-    for (let i=0;i<Math.min(20, arr.length); i++){
+    for(let i=0;i<Math.min(20,arr.length);i++){
       const it = arr[i];
       html += `<div class="row">${i+1}. ${escapeHtml(it.artist)} <span style="opacity:.85">${it.count}</span></div>`;
     }
@@ -174,18 +234,28 @@ function computeTopAndVisuals(){
   topList.innerHTML = html;
 }
 
-// helper colors
+/* ---------- helpers & UI wiring ---------- */
+function populateTopSelect(){
+  GENRES.forEach(g=>{
+    const opt = document.createElement('option'); opt.value = g.id; opt.textContent = g.label;
+    genreSelect.appendChild(opt);
+  });
+  genreSelect.addEventListener('change', computeAndRenderTop);
+}
+function toggleTopPanel(){
+  const hidden = topPanel.classList.toggle('hidden');
+  topPanel.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+  if(!hidden) computeAndRenderTop();
+}
+
 function getGenreColor(id){
-  const g = GENRES.find(x => x.id === id);
-  if (!g) return '#ffffff';
-  // map id to the iridescent hex we used in CSS
   switch(id){
-    case 'techno': return '#c66cff';
-    case 'house': return '#00e2a3';
-    case 'dnb': return '#33d7ff';
-    case 'dub': return '#ffb86b';
-    case 'elect': return '#d86bff';
-    case 'main': return '#ffffff';
+    case 'techno': return '#FF267D';
+    case 'house':  return '#FF8F33';
+    case 'dnb':    return '#FFCE00';
+    case 'dub':    return '#00D282';
+    case 'elect':  return '#2378FF';
+    case 'main':   return '#AA5AFF';
     default: return '#ffffff';
   }
 }
@@ -198,33 +268,17 @@ function colorWithAlpha(hex, a){
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// UI wiring & init
-function populateTopSelect(){
-  GENRES.forEach(g=>{
-    const opt = document.createElement('option'); opt.value = g.id; opt.textContent = g.label;
-    genreSelect.appendChild(opt);
-  });
-  genreSelect.addEventListener('change', computeTopAndVisuals);
+/* ---------- utility: handle resize (re-anchor prompt if open) ---------- */
+function onResize(){
+  if(!activePrompt) return;
+  // recompute anchor center on resize by relocating prompt to anchor center immediately
+  const anchorRect = activePrompt.anchorEl.getBoundingClientRect();
+  const anchorCenter = { x: anchorRect.left + anchorRect.width/2, y: anchorRect.top + anchorRect.height/2 };
+  const p = activePrompt.el;
+  const x = anchorCenter.x + Math.cos(activePrompt.angle) * activePrompt.radius - p.offsetWidth/2;
+  const y = anchorCenter.y + Math.sin(activePrompt.angle) * activePrompt.radius - p.offsetHeight/2;
+  p.style.left = `${x}px`; p.style.top = `${y}px`;
 }
 
-topToggle.addEventListener('click', () => {
-  const hidden = topPanel.classList.toggle('hidden');
-  topToggle.setAttribute('aria-expanded', (!hidden).toString());
-});
-
-// cancel button already wired earlier
-cancelBtn.addEventListener('click', closeModal);
-
-// init nebula subtle animation (CSS handles it) — nothing JS-needed
-
-// keyboard accessibility: Enter submits form by default; ESC closes modal
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (!modal.classList.contains('hidden')) closeModal();
-  }
-});
-
-// start
-populateTopSelect();
-createBubbles();
-computeTopAndVisuals();
+/* ---------- run initial compute ---------- */
+computeAndRenderTop();
