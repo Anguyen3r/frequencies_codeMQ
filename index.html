@@ -1,26 +1,20 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Code MQ — Bubble Interface (Nebula)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code MQ — Music Bubbles</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="nebula" aria-hidden="true"></div>
-
-  <header id="topbar">
-    <button id="topToggle" class="uiBtn">Top Artists</button>
-    <div id="topPanel" class="panel hidden" aria-hidden="true">
-      <label for="genreSelect" class="sr">Choose genre</label>
-      <select id="genreSelect"></select>
-      <div id="topList" class="topList" aria-live="polite"></div>
-    </div>
-  </header>
-
-  <main id="stage" role="application" aria-label="Interactive music bubbles"></main>
-
-  <!-- NOTE: prompt elements are created dynamically when user clicks a bubble -->
+  <div class="container">
+    <div class="bubble" id="techno" data-genre="Hard/Techno"></div>
+    <div class="bubble" id="house" data-genre="House"></div>
+    <div class="bubble" id="dnb" data-genre="Drum & Bass"></div>
+    <div class="bubble" id="dubstep" data-genre="Dubstep"></div>
+    <div class="bubble" id="electronic" data-genre="Electronic"></div>
+    <div class="bubble" id="mainstream" data-genre="Mainstream"></div>
+  </div>
 
   <script src="script.js"></script>
 </body>
