@@ -1,29 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code MQ – Artist Bubble Showcase</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Code MQ — Bubble Interface</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="nebula"></div>
+  <!-- Nebula animated background -->
+  <div id="nebula" aria-hidden="true"></div>
 
-  <div class="orb" id="techno" data-genre="Techno"></div>
-  <div class="orb" id="house" data-genre="House"></div>
-  <div class="orb" id="dnb" data-genre="Drum & Bass"></div>
-  <div class="orb" id="dubstep" data-genre="Dubstep"></div>
-  <div class="orb" id="electronic" data-genre="Electronic"></div>
-  <div class="orb" id="mainstream" data-genre="Mainstream"></div>
+  <!-- UI: top-left Top Artists toggle -->
+  <div id="ui">
+    <button id="topToggle" class="uiBtn" aria-expanded="false">Top Artists</button>
+    <div id="topPanel" class="panel hidden" role="region" aria-label="Top Artists">
+      <label for="genreSelect" class="sr">Choose Genre</label>
+      <select id="genreSelect" aria-label="Select genre"></select>
+      <div id="topList" class="topList" aria-live="polite"></div>
+    </div>
+  </div>
 
-  <div id="prompt" class="hidden">
-    <div class="prompt-content">
-      <button id="closePrompt">✕</button>
-      <h2>Submit Your Favorite Artist</h2>
-      <p>Enter your favorite artist and dream B2B pair:</p>
-      <input id="artistInput" type="text" placeholder="Favorite Artist" />
-      <input id="b2bInput" type="text" placeholder="Dream B2B" />
-      <button id="submitBtn">Submit</button>
+  <!-- Orb layer (DOM) -->
+  <main id="stage" role="application" aria-label="Interactive artist bubbles"></main>
+
+  <!-- Modal (prompt) -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modalCard">
+      <button id="modalClose" class="closeX" aria-label="Close">✕</button>
+      <h2 class="modalTitle">Who’s your favorite artist?</h2>
+      <p class="muted">Optionally suggest a dream B2B and tell us why</p>
+
+      <form id="voteForm">
+        <label class="sr" for="artistInput">Favorite artist (required)</label>
+        <input id="artistInput" name="artist" autocomplete="off" placeholder="Favorite artist (required)" required />
+
+        <label class="sr" for="b2bInput">Dream B2B (optional)</label>
+        <input id="b2bInput" name="b2b" autocomplete="off" placeholder="Dream B2B (optional)" />
+
+        <label class="sr" for="whyInput">Why (optional)</label>
+        <textarea id="whyInput" name="why" rows="3" placeholder="Why they? (optional)"></textarea>
+
+        <div class="modalActions">
+          <button type="button" id="cancelBtn" class="btnLight">Cancel</button>
+          <button type="submit" id="submitBtn" class="btnPrimary">Submit</button>
+        </div>
+      </form>
     </div>
   </div>
 
