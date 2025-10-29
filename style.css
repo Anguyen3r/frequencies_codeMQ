@@ -1,61 +1,57 @@
-/* Background and perspective */
-body {
+* {
   margin: 0;
-  height: 100vh;
-  background: radial-gradient(ellipse at bottom, #020111 0%, #000000 100%);
-  overflow: hidden;
-  perspective: 1000px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* Orb container to hold 3D space */
-.orb-container {
+body {
+  background: radial-gradient(circle at center, #000010 0%, #000015 100%);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.space {
   position: relative;
   width: 100%;
   height: 100%;
-  transform-style: preserve-3d;
+  perspective: 1000px;
 }
 
-/* Base orb style */
 .orb {
   position: absolute;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(0,200,255,0.3) 60%, rgba(0,0,0,0.1) 100%);
-  box-shadow:
-    0 0 25px rgba(0,200,255,0.6),
-    inset 0 0 15px rgba(255,255,255,0.3);
-  backdrop-filter: blur(5px);
-  animation: float 10s ease-in-out infinite alternate, pulse 4s ease-in-out infinite;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(0,150,255,0.3) 70%, rgba(0,0,40,0.2));
+  box-shadow: 0 0 40px rgba(0,150,255,0.5);
+  animation: float 12s ease-in-out infinite;
   transform-style: preserve-3d;
+  backdrop-filter: blur(10px);
+  mix-blend-mode: screen;
+  filter: blur(0.5px) brightness(1.2);
 }
 
-/* Floating motion */
+.orb::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  width: 50%;
+  height: 50%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  filter: blur(8px);
+}
+
 @keyframes float {
-  0% {
-    transform: translate3d(-50px, 0, 0) rotateY(0deg) rotateX(0deg);
-  }
-  50% {
-    transform: translate3d(50px, -30px, 100px) rotateY(180deg) rotateX(15deg);
-  }
-  100% {
-    transform: translate3d(-50px, 0, 0) rotateY(360deg) rotateX(0deg);
-  }
-}
-
-/* Gentle pulse glow */
-@keyframes pulse {
   0%, 100% {
-    box-shadow:
-      0 0 20px rgba(0,200,255,0.6),
-      inset 0 0 10px rgba(255,255,255,0.2);
+    transform: translate3d(calc(var(--i) * 80px - 200px), 0, 0) rotateY(0deg);
   }
   50% {
-    box-shadow:
-      0 0 40px rgba(0,200,255,0.9),
-      inset 0 0 20px rgba(255,255,255,0.4);
+    transform: translate3d(calc(var(--i) * 80px - 200px), -50px, 100px) rotateY(360deg);
   }
 }
