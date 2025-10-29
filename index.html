@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Artist Site</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(to bottom right, #111, #333);
+      color: white;
+      text-align: center;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    button {
+      padding: 10px 20px;
+      background: white;
+      color: black;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Welcome to My Artist Showcase</h1>
+  <button onclick="toggleArtist()">Show Artist Info</button>
+  <div id="artist" style="display:none; margin-top:20px;">
+    <h2>Artist Name</h2>
+    <p>Short description goes here...</p>
+  </div>
+  <script>
+    function toggleArtist() {
+      const el = document.getElementById('artist');
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>
