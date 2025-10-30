@@ -1,3 +1,11 @@
+window.addEventListener("load", () => {
+  const overlay = document.getElementById("fade-overlay");
+  setTimeout(() => {
+    overlay.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 2000);
+  }, 0);
+});
+
 /* app.js
    Updated: Zoomed-out cluster, unified orbit, staggered counter rotation, pulsing multi-color smoke,
    randomized star twinkle, modal-centered UI on bubble click, localStorage/Firebase support.
