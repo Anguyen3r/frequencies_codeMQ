@@ -104,7 +104,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x00000c, 0.00045);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 8000);
-camera.position.set(0, 0, 500); // Z increased to zoom out and show all bubbles
+camera.position.set(0, 0, 1000); // Z increased to zoom out and show all bubbles
 
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
