@@ -74,8 +74,8 @@ const GENRES = [
   { id:'house', name:'House', color:0xffbf5f },
   { id:'dnb', name:'Drum & Bass', color:0x5fff85 },
   { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
-  { id:'electronic', name:'Electronic', color:0x9f5fff },
-  { id:'mainstream', name:'Mainstream/International', color:0xffffff }
+  { id:'electronic', name:'Electronic / Dance', color:0x9f5fff },
+  { id:'mainstream', name:'Mainstream / International', color:0xffffff }
 ];
 GENRES.forEach(g=>{
   const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
@@ -96,7 +96,7 @@ scene.fog = new THREE.FogExp2(0x00000c, 0.00009);
 
 /* Camera: zoom tuned so cluster occupies ~60% of viewport.
    If you'd like to tweak, change CAMERA_Z constant below. */
-const CAMERA_Z = 760; // increase to zoom out more (e.g., 900) or lower to zoom in
+const CAMERA_Z = 850; // increase to zoom out more (e.g., 900) or lower to zoom in
 const camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHeight, 0.1, 10000);
 camera.position.set(0, 18, CAMERA_Z);
 camera.lookAt(0,0,0);
@@ -200,7 +200,7 @@ function createStardustRing(coreRadius, colorHex, tilt, particleCount=260, size=
 /* build orbs: evenly placed on ring but part of one moving cluster */
 GENRES.forEach((g, idx) => {
   const color = new THREE.Color(g.color);
-  const coreRadius = 28 + Math.random()*10;
+  const coreRadius = 40 + Math.random()*10;
   const coreGeo = new THREE.SphereGeometry(coreRadius, 48, 48);
   const coreMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, transparent:true, opacity:0.30, roughness:0.16, metalness:0.08, transmission:0.7,
@@ -232,7 +232,7 @@ GENRES.forEach((g, idx) => {
 
   // gaseous halo
   const gasGeo = new THREE.SphereGeometry(coreRadius*1.9, 32, 32);
-  const gasMat = new THREE.MeshBasicMaterial({ color: g.color, transparent:true, opacity:0.055, blending:THREE.AdditiveBlending, depthWrite:false });
+  const gasMat = new THREE.MeshBasicMaterial({ color: g.color, transparent:true, opacity:0.035, blending:THREE.AdditiveBlending, depthWrite:false });
   const gasMesh = new THREE.Mesh(gasGeo, gasMat);
   container.add(gasMesh);
 
