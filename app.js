@@ -1,149 +1,119 @@
-// app.js
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-let scene, camera, renderer, bubbles = [], particles = [], smokeParticles = [];
-let clock = new THREE.Clock();
+let scene, camera, renderer, controls;
+let particles = [];
+let smokeParticles = [];
+const particleCount = 800;
+const starCount = 2000;
 
-init();
-animate();
+// Initialize scene
+scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000010, 0.001);
 
-function init() {
-  scene = new THREE.Scene();
+// Camera
+camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 30000);
+camera.position.z = 1200; // <-- zoomed out
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.getElementById("canvasWrap").appendChild(renderer.domElement);
+// Renderer
+renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 1);
+document.body.appendChild(renderer.domElement);
 
-  // CAMERA — pulled further back but now moves dynamically
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
-  camera.position.set(0, 0, 500);
+// Controls
+controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-  // LIGHT
-  const light = new THREE.PointLight(0xffffff, 2);
-  light.position.set(0, 0, 400);
-  scene.add(light);
+// LIGHT
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const pointLight = new THREE.PointLight(0xffffff, 1);
+pointLight.position.set(100, 200, 300);
+scene.add(pointLight);
 
-  // BACKGROUND STARS
-  const starGeometry = new THREE.BufferGeometry();
-  const starCount = 5000;
-  const starPositions = [];
-  for (let i = 0; i < starCount; i++) {
-    const x = (Math.random() - 0.5) * 3000;
-    const y = (Math.random() - 0.5) * 3000;
-    const z = (Math.random() - 0.5) * 3000;
-    starPositions.push(x, y, z);
-  }
-  starGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
-  const starMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 1.2,
-    transparent: true,
-    opacity: 0.8
-  });
-  const stars = new THREE.Points(starGeometry, starMaterial);
-  scene.add(stars);
+// STARFIELD BACKGROUND
+const starGeometry = new THREE.BufferGeometry();
+const starVertices = [];
+for (let i = 0; i < starCount; i++) {
+  starVertices.push(
+    (Math.random() - 0.5) * 8000,
+    (Math.random() - 0.5) * 8000,
+    (Math.random() - 0.5) * 8000
+  );
+}
+starGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starVertices, 3));
+const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 3, transparent: true, opacity: 0.7 });
+const stars = new THREE.Points(starGeometry, starMaterial);
+scene.add(stars);
 
-  // GENRE BUBBLES
-  const colors = [0xff005d, 0x00ffff, 0xfff700, 0x9d00ff, 0x00ff66, 0xff7b00];
-  for (let i = 0; i < colors.length; i++) {
-    const geometry = new THREE.SphereGeometry(35, 64, 64);
-    const material = new THREE.MeshPhongMaterial({
-      color: colors[i],
-      transparent: true,
-      opacity: 0.5,
-      shininess: 100,
-      emissive: colors[i],
-      emissiveIntensity: 0.3
-    });
-    const bubble = new THREE.Mesh(geometry, material);
-    const angle = (i / colors.length) * Math.PI * 2;
-    bubble.position.set(Math.cos(angle) * 200, Math.sin(angle) * 120, (Math.random() - 0.5) * 100);
-    scene.add(bubble);
-    bubbles.push(bubble);
+// GAS SMOKE AROUND EDGES
+const loader = new THREE.TextureLoader();
+const smokeTexture = loader.load("https://threejs.org/examples/textures/sprites/smoke.png");
 
-    // STAR DUST RING
-    const ringGeometry = new THREE.BufferGeometry();
-    const ringParticles = 300;
-    const ringPositions = [];
-    for (let j = 0; j < ringParticles; j++) {
-      const theta = (j / ringParticles) * Math.PI * 2;
-      const radius = 90 + Math.random() * 25;
-      const x = Math.cos(theta) * radius;
-      const y = Math.sin(theta) * radius * 0.6;
-      const z = (Math.random() - 0.5) * 40;
-      ringPositions.push(x, y, z);
-    }
-    ringGeometry.setAttribute("position", new THREE.Float32BufferAttribute(ringPositions, 3));
-    const ringMaterial = new THREE.PointsMaterial({
-      color: colors[i],
-      size: 2.5,
-      transparent: true,
-      opacity: 0.9
-    });
-    const ring = new THREE.Points(ringGeometry, ringMaterial);
-    bubble.add(ring);
-    particles.push({ bubble, ring, direction: i % 2 === 0 ? 1 : -1 });
-  }
-
-  // SMOKE / NEBULA LAYER
-  const smokeTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/lava/cloud.png");
-  const smokeMaterial = new THREE.SpriteMaterial({
+for (let i = 0; i < 20; i++) {
+  const material = new THREE.MeshLambertMaterial({
+    color: new THREE.Color(`hsl(${Math.random() * 360}, 80%, 60%)`),
     map: smokeTexture,
-    color: 0x77aaff,
     transparent: true,
-    opacity: 0.18,
-    blending: THREE.AdditiveBlending
+    opacity: 0.1,
+    depthWrite: false,
   });
-  for (let i = 0; i < 12; i++) {
-    const smoke = new THREE.Sprite(smokeMaterial);
-    smoke.scale.set(1000, 1000, 1);
-    smoke.position.set(
-      (Math.random() - 0.5) * 1500,
-      (Math.random() - 0.5) * 1000,
-      -600 + Math.random() * 400
-    );
-    scene.add(smoke);
-    smokeParticles.push(smoke);
-  }
-
-  window.addEventListener("resize", onWindowResize);
+  const geometry = new THREE.PlaneGeometry(5000, 5000);
+  const smoke = new THREE.Mesh(geometry, material);
+  smoke.position.set((Math.random() - 0.5) * 8000, (Math.random() - 0.5) * 8000, -2000);
+  smoke.rotation.z = Math.random() * 360;
+  scene.add(smoke);
+  smokeParticles.push(smoke);
 }
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// MAIN PARTICLES (ORB RINGS)
+const geometry = new THREE.SphereGeometry(3, 32, 32);
+for (let i = 0; i < particleCount; i++) {
+  const material = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(`hsl(${Math.random() * 360}, 80%, 60%)`),
+    emissive: 0xffffff,
+    emissiveIntensity: 0.4,
+  });
+  const particle = new THREE.Mesh(geometry, material);
+
+  const radius = 500 + Math.random() * 500;
+  const theta = Math.random() * Math.PI * 2;
+  const y = (Math.random() - 0.5) * 800;
+  particle.position.set(radius * Math.cos(theta), y, radius * Math.sin(theta));
+
+  scene.add(particle);
+  particles.push({ mesh: particle, radius, theta, y });
 }
 
+// Animation
 function animate() {
   requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
+  controls.update();
 
-  // Move camera dynamically to simulate floating
-  camera.position.x = Math.sin(t * 0.1) * 100;
-  camera.position.y = Math.cos(t * 0.1) * 50;
-  camera.lookAt(0, 0, 0);
+  // Rotate stars slowly for depth
+  stars.rotation.y += 0.0005;
 
-  // Rotate entire scene cluster (the gyroscope effect)
-  scene.rotation.y += 0.0015;
-  scene.rotation.x += 0.0008;
-
-  // Individual bubble movement
-  bubbles.forEach((bubble, i) => {
-    bubble.rotation.y += 0.004;
-    bubble.rotation.x += 0.002;
-    const orbitSpeed = 0.001 + i * 0.0003;
-    const phase = t * orbitSpeed * 100;
-    bubble.position.x = Math.cos(phase) * 200;
-    bubble.position.y = Math.sin(phase) * 120;
-    const { ring, direction } = particles[i];
-    ring.rotation.z += 0.005 * direction;
+  // Rotate smoke aurora around the edges
+  smokeParticles.forEach((smoke, i) => {
+    smoke.rotation.z += 0.0002;
+    smoke.material.opacity = 0.08 + Math.sin(Date.now() * 0.0005 + i) * 0.02;
   });
 
-  // Smoke wave motion
-  smokeParticles.forEach((smoke, i) => {
-    smoke.rotation.z += 0.0008 * (i % 2 === 0 ? 1 : -1);
+  // Rotate orbs in opposite directions for variation
+  particles.forEach((p, i) => {
+    const direction = i % 2 === 0 ? 1 : -1;
+    p.theta += 0.0008 * direction;
+    p.mesh.position.x = p.radius * Math.cos(p.theta);
+    p.mesh.position.z = p.radius * Math.sin(p.theta);
   });
 
   renderer.render(scene, camera);
 }
+animate();
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
