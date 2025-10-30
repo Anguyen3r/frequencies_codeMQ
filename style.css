@@ -1,31 +1,75 @@
-/* Basic layout */
-html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial; background:#000010;color:#fff}
-#canvasWrap{position:fixed;inset:0;z-index:0}
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at bottom, #0b0d1a 0%, #000 100%);
+  font-family: 'Inter', sans-serif;
+  color: white;
+}
 
-/* UI */
-#ui{position:fixed;left:12px;top:12px;z-index:10;display:flex;flex-direction:column;gap:10px}
-#toggleTop{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
-.panel{background:rgba(6,8,15,0.6);backdrop-filter:blur(6px);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);width:320px;max-height:70vh;overflow:auto}
-.hidden{display:none}
-#genreSelect{width:100%;padding:6px;margin-bottom:8px;border-radius:6px;border:none}
-#topList{font-size:13px}
-#topList .row{display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)}
-#topList .row strong{color:#fff}
-#topList .score{opacity:0.75}
+#canvasWrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
 
-/* Playlist area */
-#playlistPanel{position:fixed;right:12px;top:12px;width:300px;z-index:10}
-#spotifyInput{width:100%;padding:8px;border-radius:6px;border:none;margin-bottom:6px}
-#loadSpotify{padding:8px;border-radius:6px;border:none;background:#1db954;color:#fff;cursor:pointer}
-#spotifyEmbed iframe{width:100%;height:80px;border-radius:6px;border:none;margin-top:8px}
+#space-bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(30,40,60,0.8), #000);
+  background-size: 200% 200%;
+  animation: bgMove 60s ease-in-out infinite;
+  z-index: -1;
+}
 
-/* legend */
-#legend{position:fixed;right:12px;bottom:12px;background:rgba(0,0,0,0.45);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);z-index:10}
-#legendList{list-style:none;padding:0;margin:0;display:flex;gap:8px;flex-wrap:wrap}
-#legendList li{padding:6px 10px;border-radius:20px;background:rgba(255,255,255,0.04);font-size:13px}
+@keyframes bgMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
-/* small responsiveness */
-@media (max-width:760px){
-  .panel{width:85vw}
-  #playlistPanel{width:85vw;right:8px}
+#ui {
+  position: absolute;
+  top: 2%;
+  left: 2%;
+  z-index: 2;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.glass-panel {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  min-width: 280px;
+}
+
+.glass-panel input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+}
+
+button {
+  background: linear-gradient(90deg, #7f00ff, #e100ff);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+.hidden {
+  display: none;
 }
