@@ -2,13 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — Play Your Set :p</title>
+  <title>Code MQ — Dream Bubbles</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
 </head>
 <body>
-  <div id="canvasContainer"></div>
+  <div id="ui">
+    <div class="panel" id="playlistPanel">
+      <h3>Play your set here :p</h3>
+      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud link (open.spotify.com / soundcloud.com)" />
+      <div class="row" style="margin-top:8px;">
+        <button id="loadPlaylist" class="btn">Load</button>
+        <button id="clearPlaylist" class="btn ghost">Clear</button>
+      </div>
+      <div id="playlistEmbed" style="margin-top:12px"></div>
+    </div>
+
+    <div class="panel small" id="topPanel">
+      <button id="topToggle" class="btn small">Top Artists</button>
+    </div>
+  </div>
+
+  <canvas id="bubbles" aria-hidden="true"></canvas>
+
   <script src="script.js"></script>
 </body>
 </html>
