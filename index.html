@@ -2,29 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Code MQ — Dream Bubbles</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
   <div id="ui">
+    <button id="toggleTop">☰ Top Artists</button>
+    <div id="leftPanel" class="panel hidden">
+      <h3>Top 50 — Select Genre</h3>
+      <select id="genreSelect"></select>
+      <div id="topList"></div>
+    </div>
+
     <div id="playlistPanel" class="panel">
       <h3>Play your set here :p</h3>
-      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud embed link" />
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="loadPlaylist" class="btn">Load</button>
-        <button id="clearPlaylist" class="btn ghost">Clear</button>
-      </div>
-      <div id="playlistEmbed" style="margin-top:12px;"></div>
+      <input id="spotifyInput" placeholder="Paste Spotify or SoundCloud link" />
+      <button id="loadSpotify">Load</button>
+      <div id="spotifyEmbed"></div>
     </div>
   </div>
 
-  <!-- canvas for nebula + orbs -->
-  <canvas id="bubbles" aria-hidden="true"></canvas>
+  <div id="canvasWrap"></div>
 
-  <!-- top-left "Top Artists" toggle (optional) -->
-  <div id="topUI" class="panel small" aria-hidden="false">
-    <button id="topToggle" class="btn small">Top Artists</button>
+  <div id="legend">
+    <h4>Genres</h4>
+    <ul id="legendList"></ul>
   </div>
 
   <script src="script.js"></script>
