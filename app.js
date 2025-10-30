@@ -155,7 +155,7 @@ const wrap = document.getElementById('canvasWrap') || document.body;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000010, 0.00008); // light fog
 
-/* Camera: compute z so cluster fits ~60% of viewport (adaptive) */
+/* Camera: compute z so cluster fits ~75% of viewport (adaptive) */
 let clusterRadius = Math.min(420, Math.max(300, Math.min(window.innerWidth, window.innerHeight) * 0.26));
 function computeCameraZ(clusterRadius){
   const fov = THREE.MathUtils.degToRad(48);
@@ -175,11 +175,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 wrap.appendChild(renderer.domElement);
 
 /* Lights: subtle, reduced intensity (lower glow) */
-const ambient = new THREE.AmbientLight(0xffffff, 0.42); scene.add(ambient);
+const ambient = new THREE.AmbientLight(0xffffff, 0.65); scene.add(ambient);
 const dir = new THREE.DirectionalLight(0xffffff, 0.7); dir.position.set(10,20,10); scene.add(dir);
 
 /* ---------- Stars (two layers) ---------- */
-function makeStarLayer(count, spreadX=6000, spreadY=3600, spreadZ=6000, size=1.2, opacity=0.85){
+function makeStarLayer(count, spreadX=6000, spreadY=3600, spreadZ=6000, size=1.2, opacity=0.65){
   const g = new THREE.BufferGeometry();
   const pos = new Float32Array(count*3);
   const sizes = new Float32Array(count);
@@ -226,9 +226,9 @@ function toCssRgba(hex,a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; ret
 const ORB_GROUP = new THREE.Group(); scene.add(ORB_GROUP);
 const ORB_MESHES = {};
 
-function createStardustRing(coreRadius, colorHex, tilt, particleCount=220, size=8.0, counterClockwise=true){
+function createStardustRing(coreRadius, colorHex, tilt, particleCount=275, size=8.0, counterClockwise=true){
   const group = new THREE.Group();
-  const ringRadius = coreRadius * (1.8 + Math.random()*0.6);
+  const ringRadius = coreRadius * (2.2 + Math.random()*0.6);
   const positions = new Float32Array(particleCount*3);
   const sizes = new Float32Array(particleCount);
   for (let i=0;i<particleCount;i++){
