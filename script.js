@@ -1,91 +1,114 @@
-// dreamy bubble animation
 const canvas = document.getElementById("bubbles");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let width, height;
+function resize() {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+}
+window.addEventListener("resize", resize);
+resize();
 
-let bubbles = [];
-const numBubbles = 60;
+const colors = ["#8b5cf6", "#6366f1", "#14b8a6", "#f472b6", "#eab308", "#60a5fa"];
 
-const colors = [
-  "rgba(192, 132, 252, 0.25)", // soft lavender
-  "rgba(139, 92, 246, 0.25)",  // violet
-  "rgba(96, 165, 250, 0.25)",  // sky blue
-  "rgba(236, 72, 153, 0.25)",  // rose
-  "rgba(125, 211, 252, 0.25)"  // light cyan
-];
+const mainBubbles = [];
+const smallBubbles = [];
 
-class Bubble {
-  constructor(x, y, radius, orbitRadius, orbitSpeed, angle, color) {
-    this.x = x;
-    this.y = y;
-    this.radius = radius;
-    this.orbitRadius = orbitRadius;
-    this.orbitSpeed = orbitSpeed;
-    this.angle = angle;
-    this.color = color;
-    this.direction = Math.random() > 0.5 ? 1 : -1;
-  }
-
-  update() {
-    this.angle += this.orbitSpeed * this.direction;
-    this.x += Math.cos(this.angle) * this.orbitRadius * 0.02;
-    this.y += Math.sin(this.angle) * this.orbitRadius * 0.02;
-
-    // gentle vertical drift
-    this.y += Math.sin(Date.now() * 0.0005) * 0.2;
-  }
-
-  draw() {
-    const glow = ctx.createRadialGradient(this.x, this.y, this.radius * 0.2, this.x, this.y, this.radius);
-    glow.addColorStop(0, this.color);
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-
-    ctx.beginPath();
-    ctx.fillStyle = glow;
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
+for (let i = 0; i < 6; i++) {
+  const radius = 70 + Math.random() * 40;
+  mainBubbles.push({
+    radius,
+    angle: Math.random() * Math.PI * 2,
+    orbit: 100 + i * 60,
+    color: colors[i],
+    speed: 0.002 + Math.random() * 0.001,
+  });
 }
 
-function init() {
-  bubbles = [];
-  for (let i = 0; i < numBubbles; i++) {
-    const x = Math.random() * canvas.width;
-    const y = Math.random() * canvas.height;
-    const radius = Math.random() * 30 + 10;
-    const orbitRadius = Math.random() * 80 + 20;
-    const orbitSpeed = Math.random() * 0.01 + 0.002;
-    const angle = Math.random() * Math.PI * 2;
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    bubbles.push(new Bubble(x, y, radius, orbitRadius, orbitSpeed, angle, color));
-  }
+for (let i = 0; i < 200; i++) {
+  smallBubbles.push({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    radius: Math.random() * 2,
+    speedX: (Math.random() - 0.5) * 0.2,
+    speedY: (Math.random() - 0.5) * 0.2,
+    alpha: Math.random(),
+  });
+}
+
+let time = 0;
+
+function drawNebula(t) {
+  const gradient = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    100 + Math.sin(t / 200) * 50,
+    width / 2,
+    height / 2,
+    Math.max(width, height) / 1.2
+  );
+  gradient.addColorStop(0, "rgba(76,0,130,0.3)");
+  gradient.addColorStop(0.5, "rgba(10,10,60,0.3)");
+  gradient.addColorStop(1, "rgba(0,0,0,0.9)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
 }
 
 function animate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  time += 1;
+  drawNebula(time);
 
-  // subtle parallax background drift
-  const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  bgGradient.addColorStop(0, "#1e1b4b");
-  bgGradient.addColorStop(1, "#312e81");
-  ctx.fillStyle = bgGradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Draw small background bubbles
+  smallBubbles.forEach((b) => {
+    b.x += b.speedX;
+    b.y += b.speedY;
+    if (b.x < 0) b.x = width;
+    if (b.x > width) b.x = 0;
+    if (b.y < 0) b.y = height;
+    if (b.y > height) b.y = 0;
 
-  for (let b of bubbles) {
-    b.update();
-    b.draw();
-  }
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${b.alpha})`;
+    ctx.fill();
+  });
+
+  // Draw main glowing orbs
+  mainBubbles.forEach((b, i) => {
+    const cx = width / 2 + Math.cos(b.angle) * b.orbit;
+    const cy = height / 2 + Math.sin(b.angle) * b.orbit;
+
+    b.angle += b.speed * (i % 2 === 0 ? 1 : -1);
+
+    const glow = ctx.createRadialGradient(cx, cy, b.radius * 0.2, cx, cy, b.radius);
+    glow.addColorStop(0, b.color + "88");
+    glow.addColorStop(1, "transparent");
+
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, b.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
   requestAnimationFrame(animate);
 }
-
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  init();
-});
-
-init();
 animate();
+
+// Load Spotify or SoundCloud embeds
+document.getElementById("loadPlayer").addEventListener("click", () => {
+  const input = document.getElementById("spotifyInput").value.trim();
+  const container = document.getElementById("musicEmbed");
+  container.innerHTML = "";
+
+  if (!input) return;
+
+  if (input.includes("spotify")) {
+    container.innerHTML = `<iframe src="${input}" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+  } else if (input.includes("soundcloud")) {
+    container.innerHTML = `<iframe width="100%" height="380" scrolling="no" frameborder="no" allow="autoplay" src="${input}"></iframe>`;
+  } else {
+    container.innerHTML = `<p style="color:#aaa;">Unsupported link. Please paste a valid Spotify or SoundCloud embed.</p>`;
+  }
+});
