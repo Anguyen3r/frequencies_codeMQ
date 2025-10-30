@@ -1,150 +1,114 @@
-// --- Scene setup ---
+// === Setup scene ===
 const scene = new THREE.Scene();
-
-// Camera
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(0, 0, 50);
-
-// Renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.getElementById("canvasWrap").appendChild(renderer.domElement);
 
-// Lighting
-const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+// === Lighting ===
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambient);
-const pointLight = new THREE.PointLight(0xffffff, 1.2);
-pointLight.position.set(0, 20, 20);
+const pointLight = new THREE.PointLight(0xffffff, 2);
+pointLight.position.set(5, 5, 5);
 scene.add(pointLight);
 
-// Optional orbit controls (for debugging)
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.enabled = false; // turn on only if you need debugging
+// === Genre Colors ===
+const genreColors = [
+  0xff007f, // Hard/Techno
+  0xff8c00, // House
+  0x00ffff, // Drum & Bass
+  0x9400d3, // Dubstep
+  0x7fff00, // Electronic
+  0xffffff  // Mainstream
+];
 
-// --- Create Bubbles ---
-const bubbleCount = 40;
-const bubbles = [];
-const bubbleGroup = new THREE.Group();
-scene.add(bubbleGroup);
-
-for (let i = 0; i < bubbleCount; i++) {
-  const radius = Math.random() * 1.5 + 0.8;
-
-  // glowing material
-  const color = new THREE.Color(
-    `hsl(${Math.random() * 360}, 80%, 60%)`
-  );
-  const material = new THREE.MeshStandardMaterial({
-    color: color,
-    emissive: color.clone().multiplyScalar(0.5),
-    roughness: 0.3,
-    metalness: 0.8,
+// === Create Orbs ===
+const orbs = [];
+const radius = 8; // orbital distance
+genreColors.forEach((color, i) => {
+  const geometry = new THREE.SphereGeometry(1.2, 64, 64);
+  const material = new THREE.MeshPhysicalMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 2,
+    transmission: 0.8,
+    opacity: 0.7,
     transparent: true,
-    opacity: 0.85,
+    roughness: 0.1,
+    metalness: 0.2,
+    clearcoat: 1.0
   });
 
-  const geometry = new THREE.SphereGeometry(radius, 32, 32);
-  const mesh = new THREE.Mesh(geometry, material);
-
-  // Random orbit setup
-  const orbitRadius = Math.random() * 20 + 5;
-  const speed = (Math.random() * 0.5 + 0.2) * (Math.random() < 0.5 ? 1 : -1);
-  const verticalPhase = Math.random() * Math.PI * 2;
-  const rotationAxis = new THREE.Vector3(
-    Math.random() * 2 - 1,
-    Math.random() * 2 - 1,
-    Math.random() * 2 - 1
-  ).normalize();
-
-  bubbles.push({
-    mesh,
-    orbitRadius,
+  const orb = new THREE.Mesh(geometry, material);
+  orb.userData = {
     angle: Math.random() * Math.PI * 2,
-    speed,
-    verticalPhase,
-    rotationAxis,
-  });
+    speed: 0.002 + Math.random() * 0.001,
+    direction: Math.random() > 0.5 ? 1 : -1
+  };
+  orb.position.set(
+    Math.cos(orb.userData.angle) * radius,
+    (Math.random() - 0.5) * 3,
+    Math.sin(orb.userData.angle) * radius
+  );
+  scene.add(orb);
+  orbs.push(orb);
+});
 
-  bubbleGroup.add(mesh);
+// === Background Stars ===
+const starCount = 800;
+const starGeometry = new THREE.BufferGeometry();
+const starPositions = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount * 3; i++) {
+  starPositions[i] = (Math.random() - 0.5) * 200;
 }
+starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
+const stars = new THREE.Points(starGeometry, starMaterial);
+scene.add(stars);
 
-// --- Animate Background Gyroscopic Motion ---
-let gyroscopeAngle = 0;
+camera.position.z = 15;
 
-// --- Animation loop ---
+// === Animate Scene ===
 function animate() {
   requestAnimationFrame(animate);
 
-  gyroscopeAngle += 0.002;
-  bubbleGroup.rotation.x = Math.sin(gyroscopeAngle * 0.5) * 0.3;
-  bubbleGroup.rotation.y = Math.cos(gyroscopeAngle * 0.5) * 0.3;
+  // Move background (nebula illusion)
+  stars.rotation.y += 0.0003;
+  stars.rotation.x += 0.0002;
 
-  const time = performance.now() * 0.001;
-  bubbles.forEach((b, i) => {
-    b.angle += b.speed * 0.01;
-
-    // circular orbit
-    const x = Math.cos(b.angle) * b.orbitRadius;
-    const z = Math.sin(b.angle) * b.orbitRadius;
-
-    // vertical gyroscopic float
-    const y = Math.sin(time * 0.8 + b.verticalPhase) * 5;
-
-    b.mesh.position.set(x, y, z);
+  // Orbit motion for orbs
+  orbs.forEach((orb) => {
+    orb.userData.angle += orb.userData.speed * orb.userData.direction;
+    orb.position.x = Math.cos(orb.userData.angle) * radius;
+    orb.position.z = Math.sin(orb.userData.angle) * radius;
+    orb.rotation.y += 0.005;
   });
 
-  controls.update();
   renderer.render(scene, camera);
 }
-
 animate();
 
-// --- Responsive Resize ---
+// === Resize Handler ===
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- Spotify / SoundCloud Embed Handler ---
-const loadButton = document.getElementById("loadTrack");
-const embedWrap = document.getElementById("embedWrap");
-loadButton.addEventListener("click", () => {
+// === Spotify/SoundCloud Embed ===
+document.getElementById("loadSpotify").addEventListener("click", () => {
   const input = document.getElementById("spotifyInput").value.trim();
-  embedWrap.innerHTML = "";
+  const embedDiv = document.getElementById("spotifyEmbed");
+  embedDiv.innerHTML = "";
 
-  if (input.includes("spotify")) {
-    // Spotify link
-    const uri = input.includes("embed")
-      ? input
-      : `https://open.spotify.com/embed/playlist/${input.split("/").pop()}`;
-    const iframe = document.createElement("iframe");
-    iframe.src = uri;
-    iframe.width = "100%";
-    iframe.height = "380";
-    iframe.frameBorder = "0";
-    iframe.allow = "encrypted-media";
-    embedWrap.appendChild(iframe);
-  } else if (input.includes("soundcloud")) {
-    // SoundCloud link
-    const iframe = document.createElement("iframe");
-    iframe.width = "100%";
-    iframe.height = "380";
-    iframe.scrolling = "no";
-    iframe.frameBorder = "no";
-    iframe.allow = "autoplay";
-    iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
-      input
-    )}&color=%23ff5500&auto_play=false`;
-    embedWrap.appendChild(iframe);
+  if (input.includes("spotify.com")) {
+    const embedURL = input.replace("open.spotify.com", "open.spotify.com/embed");
+    embedDiv.innerHTML = `<iframe src="${embedURL}" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+  } else if (input.includes("soundcloud.com")) {
+    embedDiv.innerHTML = `<iframe width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay"
+    src="https://w.soundcloud.com/player/?url=${encodeURIComponent(input)}"></iframe>`;
   } else {
-    embedWrap.textContent = "Please enter a valid Spotify or SoundCloud link.";
+    embedDiv.textContent = "Invalid link. Paste a Spotify or SoundCloud link.";
   }
 });
