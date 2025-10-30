@@ -3,41 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <title>Code MQ — Dream Bubbles</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
+
 <body>
   <div id="ui">
-    <button id="toggleTop">☰ Top Artists</button>
-    <div id="leftPanel" class="panel hidden">
-      <h3>Top 50 Artists</h3>
-      <div id="topList"></div>
-    </div>
-
-    <div id="musicPanel" class="panel">
-      <h3>Music Player</h3>
-      <iframe
-        id="musicPlayer"
-        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXa2EiKmMLhFD?utm_source=generator"
-        width="100%" height="200" frameBorder="0"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy">
-      </iframe>
+    <div id="playlistPanel" class="panel">
+      <h3>Play your set here :p</h3>
+      <input id="spotifyInput" placeholder="Paste Spotify or SoundCloud link" />
+      <button id="loadSpotify">Load</button>
+      <div id="spotifyEmbed"></div>
     </div>
   </div>
 
   <div id="canvasWrap"></div>
-
-  <!-- Popup -->
-  <div id="promptOverlay" class="hidden">
-    <div id="promptBox">
-      <button id="closePrompt">✕</button>
-      <h2>Your Favorite Artist?</h2>
-      <input id="artistInput" placeholder="Enter artist name" />
-      <button id="submitArtist">Submit</button>
-    </div>
-  </div>
 
   <script src="app.js"></script>
 </body>
