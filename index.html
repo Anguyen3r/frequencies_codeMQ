@@ -1,27 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dream Bubbles</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <canvas id="bubbles"></canvas>
-
-    <div class="content">
-      <h1>play your set here :p</h1>
-
-      <div class="player">
-        <input
-          id="spotifyInput"
-          placeholder="Paste Spotify or SoundCloud embed URL"
-        />
-        <button id="loadPlayer">Load</button>
-        <div id="musicEmbed"></div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Code MQ — Dream Bubbles</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="ui">
+    <div id="playlistPanel" class="panel">
+      <h3>Play your set here :p</h3>
+      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud embed link" />
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="loadPlaylist" class="btn">Load</button>
+        <button id="clearPlaylist" class="btn ghost">Clear</button>
       </div>
+      <div id="playlistEmbed" style="margin-top:12px;"></div>
     </div>
+  </div>
 
-    <script src="script.js"></script>
-  </body>
+  <!-- canvas for nebula + orbs -->
+  <canvas id="bubbles" aria-hidden="true"></canvas>
+
+  <!-- top-left "Top Artists" toggle (optional) -->
+  <div id="topUI" class="panel small" aria-hidden="false">
+    <button id="topToggle" class="btn small">Top Artists</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
