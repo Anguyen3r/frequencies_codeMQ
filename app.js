@@ -563,3 +563,24 @@ if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 
 /* sanity */
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
+// --- Intro fade + auto play setup ---
+window.addEventListener("load", () => {
+  const overlay = document.createElement("div");
+  overlay.id = "fadeOverlay";
+  document.body.appendChild(overlay);
+
+  // Play "Wave" automatically
+  const waveAudio = new Audio("https://your-soundcloud-track-url-or-local-file.mp3");
+  waveAudio.volume = 0.8;
+  waveAudio.play().catch(() => {
+    console.log("Autoplay blocked, waiting for user interaction");
+    document.body.addEventListener("click", () => waveAudio.play(), { once: true });
+  });
+
+  // Fade overlay after a few seconds
+  setTimeout(() => {
+    overlay.style.transition = "opacity 2.5s ease-in-out";
+    overlay.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 3000);
+  }, 300);
+});
