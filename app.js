@@ -570,7 +570,7 @@ window.addEventListener("load", () => {
   document.body.appendChild(overlay);
 
   // Play "Wave" automatically
-  const waveAudio = new Audio("https://your-soundcloud-track-url-or-local-file.mp3");
+  const waveAudio = new Audio(https://soundcloud.com/user-200235414/wave-1);
   waveAudio.volume = 0.8;
   waveAudio.play().catch(() => {
     console.log("Autoplay blocked, waiting for user interaction");
