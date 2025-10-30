@@ -100,7 +100,7 @@ scene.fog = new THREE.FogExp2(0x00000c, 0.00045);
 
 // CAMERA: zoomed out so all orbs are visible; tweak z to fine-tune
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 8000);
-camera.position.set(0, 18, 300); // pulled back to fit full cluster
+camera.position.set(0, 18, 500); // pulled back to fit full cluster
 camera.lookAt(0,0,0);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
