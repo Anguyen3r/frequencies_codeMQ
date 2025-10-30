@@ -191,3 +191,11 @@ html, body {
   .panel { width: 85vw; }
   #playlistPanel { width: 85vw; right: 8px; }
 }
+#fadeOverlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(10, 10, 20, 0.9), rgba(0, 0, 0, 1));
+  z-index: 9999;
+  opacity: 1;
+  pointer-events: none;
+}
