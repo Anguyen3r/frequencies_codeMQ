@@ -2,31 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Dream Bubbles</title>
+  <title>Code MQ — Bubbles (Gray + Stardust)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <!-- OrbitControls (optional) -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
   <div id="ui">
-    <button id="toggleTop">☰ Top Artists</button>
-    <div id="leftPanel" class="panel hidden">
-      <h3>Top 50 — Select Genre</h3>
-      <select id="genreSelect"></select>
-      <div id="topList"></div>
+    <div class="left">
+      <button id="statsToggle" class="btn">💿 Bubble Stats</button>
+      <div id="statsPanel" class="panel hidden" aria-hidden="true">
+        <h4>Bubble Counts</h4>
+        <div id="statsList"></div>
+        <button id="resetCounts" class="btn ghost">Reset Counts</button>
+      </div>
+    </div>
+
+    <div class="right">
+      <div id="musicPanel" class="panel">
+        <h4>🎧 Play your set</h4>
+        <input id="musicInput" placeholder="Paste Spotify / SoundCloud URL (open.spotify.com or soundcloud.com)" />
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="loadMusic" class="btn">Load</button>
+          <button id="clearMusic" class="btn ghost">Clear</button>
+        </div>
+        <div id="musicEmbed" style="margin-top:10px"></div>
+      </div>
     </div>
   </div>
 
-  <div id="canvasWrap"></div>
+  <canvas id="bubblesCanvas" aria-hidden="true"></canvas>
 
-  <div id="legend">
-    <h4>Genres</h4>
-    <ul id="legendList"></ul>
-  </div>
-
-  <script src="app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
