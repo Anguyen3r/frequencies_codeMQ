@@ -1,28 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Code MQ — Dream Bubbles</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dream Bubbles</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <canvas id="bubbles"></canvas>
 
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
-</head>
-
-<body>
-  <div id="ui">
-    <div id="playlistPanel" class="panel">
-      <h3>Play your set here :p</h3>
-      <input id="spotifyInput" placeholder="Paste Spotify or SoundCloud link" />
-      <button id="loadSpotify">Load</button>
-      <div id="spotifyEmbed"></div>
+    <div class="content">
+      <h1>play your set here :p</h1>
+      <iframe
+        src="https://open.spotify.com/embed/playlist/dream-bubbles"
+        width="100%"
+        height="380"
+        frameborder="0"
+        allowtransparency="true"
+        allow="encrypted-media"
+      ></iframe>
     </div>
-  </div>
 
-  <div id="canvasWrap"></div>
-
-  <script src="app.js"></script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
