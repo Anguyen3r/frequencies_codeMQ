@@ -1,6 +1,6 @@
 /* app.js — Final refined version
    - No white rectangular filter
-   - Cluster occupies ~60% of viewport
+   - Cluster occupies ~80% of viewport
    - Orbs orbit together, staggered, counterphase, phasing allowed
    - Reduced glow/transparency, denser smoke, audio-reactive pulsing
    - Center overlay appears on bubble click (prompt + audio load + exit)
@@ -155,7 +155,7 @@ const wrap = document.getElementById('canvasWrap') || document.body;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000010, 0.00008); // light fog
 
-/* Camera: compute z so cluster fits ~75% of viewport (adaptive) */
+/* Camera: compute z so cluster fits ~80% of viewport (adaptive) */
 let clusterRadius = Math.min(420, Math.max(300, Math.min(window.innerWidth, window.innerHeight) * 0.26));
 function computeCameraZ(clusterRadius){
   const fov = THREE.MathUtils.degToRad(48);
