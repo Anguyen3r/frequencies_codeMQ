@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Dream Bubbles</title>
+  <title>Dream Bubbles — Code MQ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="ui">
-    <div class="panel" id="playlistPanel">
-      <h3>Play your set here :p</h3>
-      <input id="playlistInput" placeholder="Paste Spotify or SoundCloud link (open.spotify.com / soundcloud.com)" />
-      <div class="row" style="margin-top:8px;">
-        <button id="loadPlaylist" class="btn">Load</button>
-        <button id="clearPlaylist" class="btn ghost">Clear</button>
-      </div>
-      <div id="playlistEmbed" style="margin-top:12px"></div>
-    </div>
-
-    <div class="panel small" id="topPanel">
-      <button id="topToggle" class="btn small">Top Artists</button>
+    <h1>Play Your Set Here :p</h1>
+    <div id="spotifyContainer">
+      <iframe 
+        id="spotifyEmbed"
+        style="border-radius:12px"
+        src="https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n?utm_source=generator"
+        width="100%" 
+        height="152" 
+        frameBorder="0" 
+        allowfullscreen="" 
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+        loading="lazy">
+      </iframe>
     </div>
   </div>
 
-  <canvas id="bubbles" aria-hidden="true"></canvas>
-
+  <canvas id="bubbleCanvas"></canvas>
   <script src="script.js"></script>
 </body>
 </html>
