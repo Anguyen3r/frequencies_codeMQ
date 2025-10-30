@@ -2,32 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — SoundSpace</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Code MQ — Dream Bubbles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <!-- OrbitControls (for debugging/camera movement) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 
 <body>
-  <div id="space-bg"></div>
-
   <div id="ui">
-    <div class="glass-panel" id="spotifyPanel">
-      <h2>🎵 Dream Bubbles Playlist</h2>
+    <div id="playlistPanel" class="panel">
+      <h3>Play your set here :p</h3>
       <input id="spotifyInput" placeholder="Paste Spotify or SoundCloud link" />
-      <button id="loadTrack">Load Track</button>
-      <div id="embedWrap"></div>
-    </div>
-
-    <button id="toggleInfo">☰ Top Artists</button>
-    <div class="glass-panel hidden" id="infoPanel">
-      <h3>Top 50 — Select Genre</h3>
-      <select id="genreSelect"></select>
-      <div id="topList"></div>
+      <button id="loadSpotify">Load</button>
+      <div id="spotifyEmbed"></div>
     </div>
   </div>
 
