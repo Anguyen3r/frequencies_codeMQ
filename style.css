@@ -1,63 +1,36 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  height: 100%;
-  background: radial-gradient(circle at center, #111, #000);
-  font-family: 'Inter', sans-serif;
-  color: #fff;
+:root{
+  --bg:#030212;
+  --panel: rgba(15,16,22,0.75);
+  --glass: rgba(255,255,255,0.04);
+  --accent: linear-gradient(90deg,#7f5af0,#c084fc);
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
 }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);font-family:var(--font);color:#eef7ff;-webkit-font-smoothing:antialiased;overflow:hidden}
 
-#canvasWrap {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}
+/* Canvas fills */
+#bubblesCanvas{position:fixed;inset:0;z-index:0;display:block}
 
-#ui {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-}
+/* UI */
+#ui{position:fixed;inset:16px;pointer-events:none;display:flex;justify-content:space-between;z-index:14}
+#ui .left, #ui .right{pointer-events:auto}
 
-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-}
+/* panels */
+.panel{background:var(--panel);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(6px);min-width:260px}
+.panel.hidden{display:none}
+.btn{background:var(--accent);border:none;padding:8px 10px;border-radius:8px;color:#fff;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+h4{margin:0 0 8px 0;font-size:15px}
 
-button:hover {
-  background: rgba(255,255,255,0.2);
-}
+/* stats list */
+#statsList .row{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px}
 
-.panel {
-  position: absolute;
-  top: 60px;
-  left: 20px;
-  width: 260px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 10px;
-  padding: 10px;
-  backdrop-filter: blur(6px);
-  transition: opacity 0.3s ease;
-}
+/* music input */
+#musicInput{width:100%;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,0.03);color:#fff;outline:none}
 
-.panel.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-#legend {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  font-size: 14px;
-  color: #aaa;
-  z-index: 5;
+/* responsive */
+@media (max-width:700px){
+  #ui{inset:10px;flex-direction:column;gap:8px}
+  .panel{min-width:unset;width:92vw}
+  #musicEmbed iframe{width:100%;height:166px}
 }
