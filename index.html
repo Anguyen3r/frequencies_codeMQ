@@ -2,39 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Gray Orbs + Stardust (3D)</title>
+  <title>Code MQ — Dream Bubbles</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
   <div id="ui">
-    <div class="left">
-      <button id="statsToggle" class="btn">💿 Bubble Stats</button>
-      <div id="statsPanel" class="panel hidden" aria-hidden="true">
-        <h4>Bubble Counts</h4>
-        <div id="statsList"></div>
-        <button id="resetCounts" class="btn ghost">Reset</button>
-      </div>
+    <button id="toggleTop">☰ Top Artists</button>
+    <div id="leftPanel" class="panel hidden">
+      <h3>Top 50 Artists</h3>
+      <div id="topList"></div>
     </div>
 
-    <div class="right">
-      <div id="musicPanel" class="panel">
-        <h4>🎧 Music</h4>
-        <input id="musicInput" placeholder="Paste Spotify or SoundCloud (open.spotify.com / soundcloud.com)" />
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button id="loadMusic" class="btn">Load</button>
-          <button id="clearMusic" class="btn ghost">Clear</button>
-        </div>
-        <div id="musicEmbed" style="margin-top:10px"></div>
-      </div>
+    <div id="musicPanel" class="panel">
+      <h3>Music Player</h3>
+      <iframe
+        id="musicPlayer"
+        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXa2EiKmMLhFD?utm_source=generator"
+        width="100%" height="200" frameBorder="0"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy">
+      </iframe>
     </div>
   </div>
 
   <div id="canvasWrap"></div>
 
-  <script src="script.js"></script>
+  <!-- Popup -->
+  <div id="promptOverlay" class="hidden">
+    <div id="promptBox">
+      <button id="closePrompt">✕</button>
+      <h2>Your Favorite Artist?</h2>
+      <input id="artistInput" placeholder="Enter artist name" />
+      <button id="submitArtist">Submit</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
