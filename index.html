@@ -10,23 +10,29 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
+
 <body>
-  <!-- 3D canvas and ribbon -->
+  <!-- Full-screen 3D canvas -->
   <canvas id="canvas"></canvas>
+
+  <!-- Ribbon overlay (animated pulse bar) -->
   <div id="ribbon" class="idle"></div>
 
-  <!-- Top-right UI cluster -->
+  <!-- UI cluster: playlist + genre -->
   <div id="uiCluster">
-    <!-- Playlist (SoundCloud) -->
-    <div id="playlistPanel" class="panel">
+    <!-- Playlist (SoundCloud iframe) -->
+    <div id="playlistPanel" class="panel glass">
       <h3>Now Playing</h3>
-      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
+      <iframe id="soundcloudPlayer"
+        scrolling="no"
+        frameborder="no"
+        allow="autoplay"
         src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
       </iframe>
     </div>
 
-    <!-- Genre bar -->
-    <div id="genrePanel" class="panel">
+    <!-- Genre selection bar -->
+    <div id="genrePanel" class="panel glass">
       <div id="genreBar">
         <span data-genre="pop" style="color:#ff77ff;">Pop</span>
         <span data-genre="techno" style="color:#00ffff;">Techno</span>
