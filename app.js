@@ -1,11 +1,8 @@
-/* app.js
-   Full updated app.js — keeps all existing scene elements and adds:
-    - an audio-reactive horizontal energy ribbon (waveform)
-    - intro autoplay once + fade overlay handling (uses #fade-overlay from index.html)
-    - auto-switch to genre playlist when clicking a bubble
-    - ribbon color adapts to current genre color
-    - ribbon idling motion when no audio playing
-   NOTE: This file assumes the rest of your project (style.css, index.html) is unchanged.
+/* app.js — complete, orbiting translucent bubbles + audio-reactive ribbon
+   - Uses existing <canvas id="canvas"> if present; otherwise creates a renderer canvas.
+   - Defensive about missing UI nodes (won't throw).
+   - Orbits & subtle audio-pulse on bubbles (translucent / dreamlike).
+   - Fade/overlay logic intentionally removed.
 */
 
 /* ---------- CONFIG ---------- */
@@ -15,6 +12,22 @@ const FIREBASE_CONFIG = null; // optional firebase config
 function toCssHex(n){ return '#'+('000000'+(n.toString(16))).slice(-6); }
 function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* safe DOM getter / placeholder creator so script won't crash if your HTML is missing nodes */
+function getEl(id, tag='div', createIfMissing=false, attrs={}){
+  let el = document.getElementById(id);
+  if (!el && createIfMissing){
+    el = document.createElement(tag);
+    el.id = id;
+    Object.keys(attrs).forEach(k=>el.setAttribute(k, attrs[k]));
+    // keep it visually hidden but present for script references
+    el.style.position = 'absolute';
+    el.style.left = '-9999px';
+    el.style.top = '-9999px';
+    document.body.appendChild(el);
+  }
+  return el;
+}
 
 /* ---------- Persistence (Firebase optional / fallback localStorage) ---------- */
 let dbRef = null, useFirebase = false;
@@ -54,46 +67,49 @@ async function readAllVotesOnce(){
 }
 if (!useFirebase) window.addEventListener('codemq_local_update', ()=> computeAndRenderTop());
 
-/* ---------- UI refs & initial hidden state ---------- */
-const uiWrap = document.getElementById('ui');
-const legendWrap = document.getElementById('legend');
-const genreSelect = document.getElementById('genreSelect');
-const topList = document.getElementById('topList');
-const toggleTop = document.getElementById('toggleTop');
-const leftPanel = document.getElementById('leftPanel');
-const spotifyInput = document.getElementById('spotifyInput');
-const loadSpotify = document.getElementById('loadSpotify');
-const spotifyEmbed = document.getElementById('spotifyEmbed');
-const legendList = document.getElementById('legendList');
+/* ---------- UI refs & initial hidden state (defensive) ---------- */
+/* original script expects various nodes; create harmless placeholders if missing */
+const uiWrap       = getEl('ui', 'div', true);
+const legendWrap   = getEl('legend', 'div', true);
+const genreSelect  = getEl('genreSelect', 'select', true);
+const topList      = getEl('topList', 'div', true);
+const toggleTop    = getEl('toggleTop', 'button', true);
+const leftPanel    = getEl('leftPanel', 'div', true);
+const spotifyInput = getEl('spotifyInput', 'input', true);
+const loadSpotify  = getEl('loadSpotify', 'button', true);
+const spotifyEmbed = getEl('spotifyEmbed', 'div', true);
+const legendList   = getEl('legendList', 'ul', true);
 
-// Hide UI and legend initially (they appear when user interacts)
-uiWrap.style.opacity = '0';
-uiWrap.style.pointerEvents = 'none';
-legendWrap.style.opacity = '0';
-legendWrap.style.pointerEvents = 'none';
+/* Hide UI and legend initially (appear on first interaction) — only if we found real elements */
+if (uiWrap) { uiWrap.style.opacity = '0'; uiWrap.style.pointerEvents = 'none'; }
+if (legendWrap) { legendWrap.style.opacity = '0'; legendWrap.style.pointerEvents = 'none'; }
 
-/* ---------- Genres & Colors (note: changed mainstream -> pop) ---------- */
+/* ---------- Genres & Colors ---------- */
 const GENRES = [
   { id:'techno', name:'Hard / Techno', color:0xff4f79 },
   { id:'house', name:'House', color:0xffbf5f },
   { id:'dnb', name:'Drum & Bass', color:0x5fff85 },
   { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
   { id:'electronic', name:'Electronic / Dance', color:0x9f5fff },
-  { id:'pop', name:'Pop', color:0xffffff } // replaced mainstream with pop
+  { id:'pop', name:'Pop', color:0xffffff }
 ];
 GENRES.forEach(g=>{
-  const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
-  const li = document.createElement('li'); li.textContent = g.name;
-  li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
-  const lum = (((g.color>>16)&255)*299 + (((g.color>>8)&255)*587) + ((g.color&255)*114))/1000;
-  li.style.color = lum >= 128 ? '#000' : '#fff';
-  legendList.appendChild(li);
+  if (genreSelect && genreSelect.tagName === 'SELECT'){
+    const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
+  }
+  if (legendList){
+    const li = document.createElement('li'); li.textContent = g.name;
+    li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
+    const lum = (((g.color>>16)&255)*299 + (((g.color>>8)&255)*587) + ((g.color&255)*114))/1000;
+    li.style.color = lum >= 128 ? '#000' : '#fff';
+    legendList.appendChild(li);
+  }
 });
-toggleTop.addEventListener('click', ()=> leftPanel.classList.toggle('hidden'));
-genreSelect.addEventListener('change', ()=> computeAndRenderTop());
+if (toggleTop) toggleTop.addEventListener('click', ()=> leftPanel.classList.toggle('hidden'));
+if (genreSelect) genreSelect.addEventListener('change', ()=> computeAndRenderTop());
 
-/* ---------- Three.js core (unchanged) ---------- */
-const wrap = document.getElementById('canvasWrap') || document.body;
+/* ---------- Three.js core ---------- */
+const wrap = getEl('canvasWrap') || document.body;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x00000c, 0.00009);
 
@@ -102,16 +118,24 @@ const camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHei
 camera.position.set(0, 18, CAMERA_Z);
 camera.lookAt(0,0,0);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+/* use existing canvas if present (keeps DOM consistent) */
+const existingCanvas = document.getElementById('canvas');
+let renderer;
+if (existingCanvas) {
+  renderer = new THREE.WebGLRenderer({ canvas: existingCanvas, antialias:true, alpha:true });
+} else {
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.domElement.style.position = 'fixed';
+  wrap.appendChild(renderer.domElement);
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000010, 1);
-wrap.appendChild(renderer.domElement);
 
 const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
 const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(10,20,10); scene.add(dir);
 
-/* ---------- Starfield & Dust (unchanged) ---------- */
+/* ---------- Starfield & Dust ---------- */
 function makeStarLayer(count, spreadX=5000, spreadY=3000, spreadZ=5000, size=1.2, opacity=0.9){
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(count * 3);
@@ -128,8 +152,8 @@ function makeStarLayer(count, spreadX=5000, spreadY=3000, spreadZ=5000, size=1.2
   const points = new THREE.Points(geo, mat);
   return { points, geo, mat };
 }
-const starsFar = makeStarLayer(1800, 6000, 3600, 6000, 1.1, 0.9);
-const starsNear = makeStarLayer(700, 3500, 2200, 3500, 1.9, 0.6);
+const starsFar = makeStarLayer(1400, 6000, 3600, 6000, 1.0, 0.9);
+const starsNear = makeStarLayer(600, 3500, 2200, 3500, 1.8, 0.6);
 scene.add(starsFar.points, starsNear.points);
 
 const dustTex = new THREE.TextureLoader().load('https://assets.codepen.io/982762/clouds.png');
@@ -139,7 +163,7 @@ const dustPlane = new THREE.Mesh(new THREE.PlaneGeometry(7000, 3800),
 dustPlane.position.set(0,0,-2600);
 scene.add(dustPlane);
 
-/* ---------- Procedural small textures (unchanged) ---------- */
+/* ---------- Procedural small textures ---------- */
 function generateGlowTexture(colorHex){
   const size = 256;
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -162,30 +186,46 @@ function generateStarTexture(){
   ctx.fillStyle = g; ctx.fillRect(0,0,s,s);
   return new THREE.CanvasTexture(c);
 }
-function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 
-/* ---------- ORB cluster (unchanged) ---------- */
+/* small helper for translucent material */
+function createTranslucentMaterial(colorHex){
+  const color = new THREE.Color(colorHex);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: color.clone().multiplyScalar(0.85),
+    transparent: true,
+    opacity: 0.18,
+    roughness: 0.05,
+    metalness: 0.02,
+    transmission: 0.9,
+    clearcoat: 0.2,
+    reflectivity: 0.2,
+    depthWrite: false
+  });
+  return mat;
+}
+
+/* ---------- ORB cluster (translucent bubbles) ---------- */
 const CLUSTER_RADIUS = 420;
 const ORB_GROUP = new THREE.Group(); scene.add(ORB_GROUP);
 const ORB_MESHES = {};
 
-function createStardustRing(coreRadius, colorHex, tilt, particleCount=260, size=8.5, counterClockwise=true){
+function createStardustRing(coreRadius, colorHex, tilt, particleCount=200, size=6.5, counterClockwise=true){
   const group = new THREE.Group();
-  const ringRadius = coreRadius * (1.8 + Math.random()*0.85);
+  const ringRadius = coreRadius * (1.8 + Math.random()*0.7);
   const positions = new Float32Array(particleCount*3);
   const sizes = new Float32Array(particleCount);
   for (let i=0;i<particleCount;i++){
     const theta = (i/particleCount) * Math.PI*2;
-    const rr = ringRadius + (Math.random()-0.5) * (coreRadius*0.36);
+    const rr = ringRadius + (Math.random()-0.5) * (coreRadius*0.32);
     positions[i*3] = Math.cos(theta)*rr;
     positions[i*3+1] = Math.sin(theta)*rr;
     positions[i*3+2] = (Math.random()-0.5) * (coreRadius*0.5);
-    sizes[i] = (Math.random()*1.6 + 1.6) * size;
+    sizes[i] = (Math.random()*1.2 + 1.2) * size;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
   geo.setAttribute('pSize', new THREE.BufferAttribute(sizes,1));
-  const mat = new THREE.PointsMaterial({ size, map: generateStarTexture(), transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending });
+  const mat = new THREE.PointsMaterial({ size, map: generateStarTexture(), transparent:true, opacity:0.75, depthWrite:false, blending:THREE.AdditiveBlending });
   mat.color = new THREE.Color(colorHex).multiplyScalar(0.9);
   const points = new THREE.Points(geo, mat);
   group.add(points);
@@ -200,17 +240,16 @@ function createStardustRing(coreRadius, colorHex, tilt, particleCount=260, size=
 
 GENRES.forEach((g, idx) => {
   const color = new THREE.Color(g.color);
-  const coreRadius = 40 + Math.random()*10;
+  const coreRadius = 36 + Math.random()*12;
   const coreGeo = new THREE.SphereGeometry(coreRadius, 48, 48);
-  const coreMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, transparent:true, opacity:0.30, roughness:0.16, metalness:0.08, transmission:0.7,
-    emissive: color.clone().multiplyScalar(0.02), emissiveIntensity:0.6, clearcoat:0.2
-  });
-  coreMat.depthWrite = false;
+  const coreMat = createTranslucentMaterial(g.color);
+  coreMat.emissive = color.clone().multiplyScalar(0.02);
+  coreMat.emissiveIntensity = 0.6;
 
   const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-  const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(g.color), color: g.color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
-  rim.scale.set(coreRadius*9.8, coreRadius*9.8, 1);
+  // rim glow sprite to give soft halo
+  const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(g.color), color: g.color, transparent:true, opacity:0.18, blending:THREE.AdditiveBlending, depthWrite:false }));
+  rim.scale.set(coreRadius*8.6, coreRadius*8.6, 1);
   coreMesh.add(rim);
 
   const container = new THREE.Group();
@@ -222,7 +261,7 @@ GENRES.forEach((g, idx) => {
   container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, Math.sin(baseAngle)*CLUSTER_RADIUS*0.6, -idx*6);
 
   const tilt = { x:(Math.random()*0.9 - 0.45)*Math.PI/2, y:(Math.random()*0.9 - 0.45)*Math.PI/2, z:(Math.random()*0.6 - 0.3)*Math.PI/6 };
-  const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random()*160), 9.5, (idx % 2 === 0));
+  const ringObj = createStardustRing(coreRadius, g.color, tilt, 180 + Math.floor(Math.random()*120), 8.0, (idx % 2 === 0));
   container.add(ringObj.group);
 
   const gasGeo = new THREE.SphereGeometry(coreRadius*1.9, 32, 32);
@@ -234,7 +273,7 @@ GENRES.forEach((g, idx) => {
   ORB_MESHES[g.id] = { id:g.id, idx, container, core: coreMesh, ringObj, gas:gasMesh, baseAngle };
 });
 
-/* ---------- Aurora/smoke layers (unchanged) ---------- */
+/* ---------- Aurora/smoke layers ---------- */
 function createAuroraSprite(colorStops, size=1600, opacity=0.3){
   const c = document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
   const grad = ctx.createRadialGradient(size/2,size/2,20,size/2,size/2,size*0.95);
@@ -271,7 +310,7 @@ cornerSpecs.forEach((s,i)=>{
   scene.add(spr); cornerSprites.push(spr);
 });
 
-/* ---------- Audio / WebAudio Controller (extended to expose time-domain) ---------- */
+/* ---------- Audio / WebAudio Controller ---------- */
 const audioController = (function(){
   let audioCtx=null, analyser=null, source=null, freqData=null, timeData=null, audioEl=null, active=false;
   async function ensure(){
@@ -289,15 +328,14 @@ const audioController = (function(){
       if (!audioEl){ audioEl = document.createElement('audio'); audioEl.crossOrigin='anonymous'; audioEl.controls=true; audioEl.style.width='100%'; }
       audioEl.src = url;
       audioEl.loop = !!loop;
-      // try to play (may be blocked by browser until interaction)
+      // attempt play (may be blocked until user gesture)
       audioEl.play().catch(()=>{});
       if (source) try{ source.disconnect(); }catch(e){}
       source = audioCtx.createMediaElementSource(audioEl);
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
       active = true;
-      // attach small player to spotifyEmbed (replace)
-      spotifyEmbed.innerHTML = ''; spotifyEmbed.appendChild(audioEl);
+      if (spotifyEmbed) { spotifyEmbed.innerHTML = ''; spotifyEmbed.appendChild(audioEl); }
       return true;
     } catch(err){
       console.warn('audio load failed', err); active=false; return false;
@@ -327,21 +365,15 @@ const audioController = (function(){
   return { loadUrl, stop, getAmps, getTimeDomain, isActive };
 })();
 
-/* ---------- Ribbon: energy trail that uses time-domain waveform ---------- */
-/* Ribbon design:
-   - a horizontal series of points across the visible world width
-   - y displacement updated from analyser time-domain data
-   - a blurred sprite behind for glow & brightness modulation
-*/
+/* ---------- Ribbon (uses time-domain waveform) ---------- */
 const RIBBON = {};
 function initRibbon(){
   const POINTS = 256;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(POINTS * 3);
   const colors = new Float32Array(POINTS * 3);
-  // compute horizontal width in world units at z=0
   function worldWidthAtZ(z) {
-    const vFOV = camera.fov * Math.PI / 180; // radians
+    const vFOV = camera.fov * Math.PI / 180;
     const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
     const width = height * camera.aspect;
     return width;
@@ -350,24 +382,19 @@ function initRibbon(){
   for (let i=0;i<POINTS;i++){
     const x = -width/2 + (i/(POINTS-1)) * width;
     positions[i*3] = x;
-    positions[i*3+1] = Math.sin(i/6) * 10; // gentle idle
-    positions[i*3+2] = -120; // place ribbon slightly in front of deeper scene, behind bubbles
-    // default white-ish color
+    positions[i*3+1] = Math.sin(i/6) * 10;
+    positions[i*3+2] = -120;
     colors[i*3] = 0.8; colors[i*3+1] = 0.7; colors[i*3+2] = 1.0;
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  // Line material — use vertex colors, additive blending for brightness
   const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
   const line = new THREE.Line(geometry, mat);
   line.frustumCulled = false;
   scene.add(line);
 
-  // Glow sprite behind (large textured rectangle)
   const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
   const ctx = c.getContext('2d');
-  // horizontal gradient for base glow texture
   const g = ctx.createLinearGradient(0,0,c.width,0);
   g.addColorStop(0, 'rgba(255,255,255,0.0)');
   g.addColorStop(0.2, 'rgba(255,255,255,0.06)');
@@ -378,7 +405,6 @@ function initRibbon(){
   const glowTex = new THREE.CanvasTexture(c);
   const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false });
   const sprite = new THREE.Sprite(spriteMat);
-  // scale in world units relative to camera frustum
   sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
   sprite.position.set(0, -8, -140);
   scene.add(sprite);
@@ -393,7 +419,7 @@ function initRibbon(){
 }
 initRibbon();
 
-/* ---------- Map genres to SoundCloud playlist URLs (generic placeholders) ---------- */
+/* ---------- Map genres to SoundCloud playlist URLs (placeholders) ---------- */
 const GENRE_PLAYLISTS = {
   'techno': 'https://soundcloud.com/your-hard-techno-playlist',
   'house':  'https://soundcloud.com/your-house-playlist',
@@ -403,27 +429,23 @@ const GENRE_PLAYLISTS = {
   'pop':    'https://soundcloud.com/your-pop-playlist'
 };
 
-/* ---------- Play selected genre audio and adapt ribbon color ---------- */
+/* ---------- Play genre and tint ribbon ---------- */
 let currentGenreId = null;
 async function playGenreAudio(genreId){
   const url = GENRE_PLAYLISTS[genreId] || GENRE_PLAYLISTS['electronic'];
   await audioController.loadUrl(url, { loop: true });
   currentGenreId = genreId;
-  // tint ribbon to the genre color
   const g = GENRES.find(x=>x.id===genreId);
-  if (g){
-    // set per-vertex color toward genre color (subtle)
+  if (g && RIBBON.geometry){
     const colors = RIBBON.geometry.attributes.color.array;
     const tr = ((g.color>>16)&255)/255, tg = ((g.color>>8)&255)/255, tb = (g.color&255)/255;
     for (let i=0;i<RIBBON.points;i++){
-      // blend between base and genre color
       const idx = i*3;
       colors[idx] = 0.25 + tr * 0.75;
       colors[idx+1] = 0.25 + tg * 0.75;
       colors[idx+2] = 0.25 + tb * 0.75;
     }
     RIBBON.geometry.attributes.color.needsUpdate = true;
-    // tint glow sprite slightly by setting its material color
     if (RIBBON.sprite && RIBBON.sprite.material) {
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.6;
@@ -431,37 +453,30 @@ async function playGenreAudio(genreId){
   }
 }
 
-/* ---------- Raycast / Click handling (plays genre audio on bubble click) ---------- */
+/* ---------- Raycast / Click handling (plays genre audio on orb click) ---------- */
 const raycaster = new THREE.Raycaster();
 const ndcMouse = new THREE.Vector2();
 
 function onPointerDown(e){
-  // reveal UI on first interaction
-  if (uiWrap.style.opacity === '0') {
-    uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-    legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
-  }
+  if (uiWrap) { uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto'; }
+  if (legendWrap) { legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto'; }
 
   const rect = renderer.domElement.getBoundingClientRect();
   ndcMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   ndcMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(ndcMouse, camera);
 
-  // find cores
   const cores = [];
   ORB_GROUP.children.forEach(c => { c.traverse(n => { if (n.isMesh && n.geometry && n.geometry.type === 'SphereGeometry') cores.push(n); }); });
   const hits = raycaster.intersectObjects(cores, true);
   if (hits.length > 0){
     let hit = hits[0].object;
-    // find parent container
     let parent = null;
     for (const c of ORB_GROUP.children){ if (c.children.includes(hit) || c === hit || c.children.includes(hit.parent)) { parent = c; break; } }
     if (parent){
       const found = Object.values(ORB_MESHES).find(o => o.container === parent);
       if (found) {
-        // immediately switch music to that genre (user wanted music change on bubble click)
         playGenreAudio(found.id).catch(()=>{});
-        // open the prompt/modal afterwards
         openCenteredModal(found.id);
       }
     }
@@ -469,7 +484,7 @@ function onPointerDown(e){
 }
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
-/* ---------- Centered modal code (unchanged except uses playGenreAudio earlier) ---------- */
+/* ---------- Centered modal (unchanged behavior) ---------- */
 let activeModal = null;
 function closeModal(){ if(!activeModal) return; try{ activeModal.dom.remove(); }catch(e){} activeModal=null; }
 function openCenteredModal(genreId){
@@ -525,15 +540,14 @@ function openCenteredModal(genreId){
     const url = URL.createObjectURL(f);
     await audioController.loadUrl(url, { loop: true });
     insertAudioPlayerInModal(modal, url, f.name);
-    // also tint ribbon neutral (local track not tied to genre)
     currentGenreId = null;
   });
   modal.querySelector('#modalAudioUrl').addEventListener('keydown', async (ev)=>{
     if (ev.key === 'Enter'){ const url = modalAudioUrl.value.trim(); if (!url) return; await audioController.loadUrl(url, { loop: true }); insertAudioPlayerInModal(modal, url, url); currentGenreId = null; }
   });
   activeModal = { dom: modal, genreId };
-  uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-  legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
+  if (uiWrap) { uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto'; }
+  if (legendWrap) { legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto'; }
   setTimeout(()=> modal.querySelector('.artist').focus(), 120);
 }
 
@@ -549,7 +563,7 @@ function insertAudioPlayerInModal(modal, src, label){
   info.textContent = `Loaded: ${label}`;
 }
 
-/* ---------- flash feedback (unchanged) ---------- */
+/* ---------- flash feedback ---------- */
 function flashOrb(genreId){
   const o = ORB_MESHES[genreId]; if (!o) return;
   const mat = o.core.material; const orig = mat.emissiveIntensity || 0.6;
@@ -557,7 +571,7 @@ function flashOrb(genreId){
   setTimeout(()=> mat.emissiveIntensity = orig, 900);
 }
 
-/* ---------- Top computation UI (unchanged) ---------- */
+/* ---------- Top computation UI ---------- */
 async function computeAndRenderTop(){
   const raw = await readAllVotesOnce();
   const perGenreCounts = {};
@@ -570,11 +584,11 @@ async function computeAndRenderTop(){
     perGenreCounts[g.id]=sorted;
     updateOrbHighlight(g.id, sorted[0] ? sorted[0].count : 0);
   });
-  const sel = genreSelect.value || GENRES[0].id;
+  const sel = (genreSelect && genreSelect.value) ? genreSelect.value : GENRES[0].id;
   const arr = perGenreCounts[sel] || []; let html='';
   for (let i=0;i<Math.min(50,arr.length);i++) html += `<div class="row"><strong>${i+1}. ${escapeHtml(arr[i].artist)}</strong><span class="score">${arr[i].count}</span></div>`;
   if (!html) html = '<div style="padding:8px;color:#bbb">No suggestions yet — be the first!</div>';
-  topList.innerHTML = html;
+  if (topList) topList.innerHTML = html;
 }
 function updateOrbHighlight(genreId, topCount){
   const o = ORB_MESHES[genreId]; if (!o) return;
@@ -584,7 +598,7 @@ function updateOrbHighlight(genreId, topCount){
   o.core.scale.set(base, base, base);
 }
 
-/* ---------- Animation / render loop (adds ribbon waveform update) ---------- */
+/* ---------- Animation / render loop (restored orb orbit + audio pulse) ---------- */
 let start = performance.now();
 function animate(){
   requestAnimationFrame(animate);
@@ -594,7 +608,7 @@ function animate(){
   const bass = amps ? amps.bass : 0;
   const rms = amps ? amps.rms : 0.06 + Math.sin(t*0.25)*0.02;
 
-  // stars twinkle (unchanged)
+  // stars twinkle
   starsFar.points.rotation.z += 0.00035;
   starsNear.points.rotation.z -= 0.00048;
   starsNear.mat.opacity = 0.55 + Math.sin(t*0.9 + 3.1) * 0.08 + rms * 0.12;
@@ -617,55 +631,67 @@ function animate(){
   camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
   camera.lookAt(0,0,0);
 
-  // cluster / bubbles orbit (unchanged)
-  const clusterSpeed = 0.14 + bass * 0.4;
-  GENRES.forEach((g, idx) => {
-    const o = ORB_MESHES[g.id];
-    if (!o) return;
-    const phaseOffset = o.baseAngle;
-    const angle = t * clusterSpeed + phaseOffset * (0.6 + idx*0.08);
+  // ---------- ORB orbit + pulse (restored) ----------
+  const clusterSpeed = 0.12 + bass * 0.4 + 0.02;
+  ORB_GROUP.children.forEach((container, idx) => {
+    const odata = ORB_MESHES[GENRES[idx].id];
+    const phaseOffset = container.userData.baseAngle || (idx / ORB_GROUP.children.length) * Math.PI*2;
+    const angle = t * (clusterSpeed * (1 + idx * 0.02)) + phaseOffset * (0.6 + idx*0.08);
     const ex = CLUSTER_RADIUS * (1 + Math.sin(idx + t*0.12)*0.02);
     const ey = CLUSTER_RADIUS * 0.6 * (1 + Math.cos(idx*0.7 + t*0.11)*0.02);
-    o.container.position.x = Math.cos(angle) * ex + (idx - 2.5) * Math.sin(t*0.03)*2;
-    o.container.position.y = Math.sin(angle * 1.02 + idx*0.31) * ey + Math.cos(idx*0.5 + t*0.2)*4;
-    o.container.position.z = Math.sin(t*(0.55 + idx*0.02))*10 - idx*4;
+    // orbit (x,y)
+    container.position.x = Math.cos(angle) * ex + (idx - 2.5) * Math.sin(t*0.03)*2;
+    container.position.y = Math.sin(angle * 1.02 + idx*0.31) * ey + Math.cos(idx*0.5 + t*0.2)*4;
+    // z-depth bob
+    container.position.z = Math.sin(t*(0.55 + idx*0.02))*10 - idx*4;
 
-    o.core.rotation.y += 0.002 + idx*0.0003;
-    o.core.rotation.x += 0.0011;
+    // gentle spin
+    container.children.forEach(ch => { if (ch.isMesh) { ch.rotation.y += 0.0015 + idx*0.0003; ch.rotation.x += 0.0009; } });
 
-    o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-    o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t*0.6 + idx))*0.18 + rms * 0.22;
+    // ring rotation and opacity subtle mod
+    if (odata && odata.ringObj){
+      odata.ringObj.group.rotation.z += odata.ringObj.rotationSpeed * (1 + bass * 0.8);
+      odata.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t*0.6 + idx))*0.18 + rms * 0.22;
+    }
 
-    o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t*0.9 + idx) + bass*0.018;
+    // gas opacity subtle
+    if (odata && odata.gas) {
+      odata.gas.material.opacity = 0.035 + 0.008 * Math.sin(t*0.9 + idx) + bass*0.02;
+    }
 
-    o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
+    // audio-driven pulse: scale bubble slightly by bass & RMS (soft, dreamlike)
+    const pulse = 1 + (bass * 0.35) + (rms * 0.12);
+    if (odata && odata.core) {
+      const targetScale = 1.0 + Math.min(0.5, (pulse - 1) * (1 + idx*0.05));
+      odata.core.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.08);
+      // also nudge emissive intensity with music
+      odata.core.material.emissiveIntensity = 0.5 + Math.min(1.8, (bass * 1.8 + rms * 0.8));
+      // rim sprite opacity
+      odata.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.14 + rms * 0.28; });
+    }
   });
 
-  /* --- Ribbon update: use time-domain data if available, otherwise idle motion --- */
+  /* --- Ribbon update: time-domain or idle --- */
   try {
     if (RIBBON && RIBBON.geometry){
       const pos = RIBBON.geometry.attributes.position.array;
       const pts = RIBBON.points;
       const timeData = audioController.getTimeDomain();
       if (timeData && timeData.length > 0){
-        // map timeData (Uint8 0..255) to -1..1 and apply smoothing across ribbon
         const step = Math.floor(timeData.length / pts) || 1;
         for (let i=0;i<pts;i++){
           const td = timeData[Math.min(timeData.length-1, i*step)];
-          const v = (td / 128.0) - 1.0; // -1..1
-          const amplitude = 120 + (currentGenreId ? 80 : 0); // scale up if genre selected
+          const v = (td / 128.0) - 1.0;
+          const amplitude = 120 + (currentGenreId ? 80 : 0);
           const y = v * amplitude * (0.7 + Math.sin(i*0.2 + t*0.7) * 0.14);
           const idx = i*3;
-          pos[idx+1] = y + -10; // offset a bit vertically
-          // slowly shift z to give forward direction feel
+          pos[idx+1] = y + -10;
           pos[idx+2] = -120 + Math.sin(t*0.3 + i*0.06)*6;
         }
-        // brightness adaptation: adjust sprite opacity based on RMS
-        const amps = audioController.getAmps();
-        const brightness = amps ? (0.3 + amps.rms*1.4) : 0.4;
+        const amps2 = audioController.getAmps();
+        const brightness = amps2 ? (0.3 + amps2.rms*1.4) : 0.4;
         if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.25 + brightness);
       } else {
-        // idle flow: gentle sine motion
         for (let i=0;i<pts;i++){
           const idx = i*3;
           pos[idx+1] = Math.sin(i*0.12 + t*0.9) * 14 + Math.sin(i*0.09 + t*0.3)*6 - 8;
@@ -681,16 +707,14 @@ function animate(){
 }
 animate();
 
-/* ---------- Resize (update ribbon width on resize) ---------- */
+/* ---------- Resize (update everything that depends on camera/frustum) ---------- */
 window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-  // recompute ribbon width and sprite scale
   if (RIBBON && RIBBON.width){
     const width = (2 * Math.tan(camera.fov * Math.PI/180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
     RIBBON.width = width;
     if (RIBBON.sprite) RIBBON.sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
-    // update x coordinates of ribbon points
     const pos = RIBBON.geometry.attributes.position.array;
     for (let i=0;i<RIBBON.points;i++){
       const x = -width/2 + (i/(RIBBON.points-1)) * width;
@@ -705,10 +729,4 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-/* ---------- (FADE REMOVED) ----------
-   The fade/overlay logic referencing #fade-overlay was intentionally removed here.
-   All other intro/autoplay/audio/ribbon/etc logic remains unchanged.
-*/
-
-/* ---------- Sanity log ---------- */
-console.log('app.js loaded — ribbon and audio-reactive features enabled.');
+console.log('app.js loaded — translucent orbiting bubbles + ribbon active.');
