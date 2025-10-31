@@ -152,3 +152,21 @@ body::after {
   background: radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%);
   z-index: 1;
 }
+/* Subtle depth and lens bloom for glassy orbs */
+canvas {
+  filter: drop-shadow(0 0 18px rgba(255,255,255,0.15))
+          drop-shadow(0 0 38px rgba(120,200,255,0.1));
+  mix-blend-mode: screen;
+}
+
+/* Slight vignette for dream depth */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center,
+    rgba(0,0,0,0) 40%,
+    rgba(0,0,10,0.35) 100%);
+  z-index: 1;
+}
