@@ -1,139 +1,208 @@
-// app.js — Dream Bubbles cinematic intro
+// app.js
 
-// --- Scene setup ---
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-camera.position.z = 120;
+import * as THREE from 'three';
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('canvasWrap').appendChild(renderer.domElement);
+let scene, camera, renderer;
+let genreBubbles = [];
+let artistBubbles = [];
+let fadeOverlay, uiVisible = false;
+let introPlayed = false;
 
-// --- Lighting ---
-const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambient);
-const point = new THREE.PointLight(0xffffff, 1);
-camera.add(point);
-scene.add(camera);
+// SoundCloud URLs
+const introTrack = "https://soundcloud.com/user-200235414/wave-1";
 
-// --- Bubble group ---
-const bubbles = new THREE.Group();
-scene.add(bubbles);
+// Generic playlists by genre (SoundCloud placeholders)
+const genrePlaylists = {
+  "Hard/Techno": "https://soundcloud.com/your-hard-techno-playlist",
+  "House": "https://soundcloud.com/your-house-playlist",
+  "Drum & Bass": "https://soundcloud.com/your-dnb-playlist",
+  "Dubstep": "https://soundcloud.com/your-dubstep-playlist",
+  "Electronic/Dance": "https://soundcloud.com/your-electronic-playlist",
+  "Mainstream/International": "https://soundcloud.com/your-mainstream-playlist"
+};
 
-const bubbleColors = [
-  0x6cc6ff, 0xff66cc, 0xffd966, 0x9b6bff, 0x66ffb3, 0xff8c66
-];
+// Audio elements
+const audio = new Audio();
+audio.volume = 0.7;
+audio.loop = false;
 
-const bubbleCount = bubbleColors.length;
-const radius = 60;
+// Fade overlay for intro
+const fadeDiv = document.createElement('div');
+fadeDiv.style.position = 'fixed';
+fadeDiv.style.top = '0';
+fadeDiv.style.left = '0';
+fadeDiv.style.width = '100vw';
+fadeDiv.style.height = '100vh';
+fadeDiv.style.background = 'rgba(0, 0, 0, 0.8)';
+fadeDiv.style.transition = 'opacity 1.5s ease';
+fadeDiv.style.zIndex = '9999';
+document.body.appendChild(fadeDiv);
 
-for (let i = 0; i < bubbleCount; i++) {
-  const color = new THREE.Color(bubbleColors[i]);
-  const geometry = new THREE.SphereGeometry(8, 64, 64);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: color,
-    roughness: 0.1,
-    metalness: 0.3,
-    transparent: true,
-    opacity: 0.5,
-    emissive: color.clone().multiplyScalar(0.2)
-  });
-  const bubble = new THREE.Mesh(geometry, material);
-  const angle = (i / bubbleCount) * Math.PI * 2;
-  bubble.userData = {
-    baseAngle: angle,
-    speed: (Math.random() * 0.3 + 0.15) * (Math.random() > 0.5 ? 1 : -1)
-  };
-  bubbles.add(bubble);
+// Start fade and intro music
+function playIntro() {
+  if (!introPlayed) {
+    introPlayed = true;
+    audio.src = introTrack;
+    audio.play().catch(e => console.log("Autoplay blocked:", e));
+    setTimeout(() => fadeDiv.style.opacity = '0', 100);
+    setTimeout(() => fadeDiv.remove(), 1500);
+    setTimeout(() => showUI(), 1800);
+  }
 }
 
-// --- Stardust particles ---
-const particlesGeometry = new THREE.BufferGeometry();
-const particleCount = 1000;
-const positions = new Float32Array(particleCount * 3);
-for (let i = 0; i < particleCount * 3; i++) positions[i] = (Math.random() - 0.5) * 800;
-particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+// Initialize scene
+function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 15;
 
-const particlesMaterial = new THREE.PointsMaterial({
-  color: 0xffffff,
-  size: 2,
-  transparent: true,
-  opacity: 0.7
-});
-const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-scene.add(particles);
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-// --- Aurora smoke ---
-const smokeTextures = [];
-for (let i = 0; i < 3; i++) {
-  const texture = new THREE.TextureLoader().load(`https://threejs.org/examples/textures/sprites/smoke.png`);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.05 + Math.random() * 0.05,
-    color: new THREE.Color(`hsl(${Math.random() * 360},50%,70%)`)
-  });
-  const geo = new THREE.PlaneGeometry(800, 800);
-  const mesh = new THREE.Mesh(geo, material);
-  mesh.position.z = -200 - i * 200;
-  mesh.rotation.z = Math.random() * Math.PI;
-  scene.add(mesh);
-  smokeTextures.push(mesh);
+  createGenreBubbles();
+  animate();
 }
 
-// --- Animate ---
-let t = 0;
+// Create genre bubbles in a tilted diagonal orbit
+function createGenreBubbles() {
+  const genres = Object.keys(genrePlaylists);
+  const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+
+  genres.forEach((genre, i) => {
+    const color = new THREE.Color(`hsl(${(i * 60) % 360}, 70%, 60%)`);
+    const material = new THREE.MeshStandardMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.9,
+      roughness: 0.3,
+      metalness: 0.5
+    });
+
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.set(
+      Math.cos(i) * 6,
+      Math.sin(i) * 2,
+      Math.sin(i * 2) * 3
+    );
+    sphere.userData = { genre, direction: i % 2 === 0 ? 1 : -1 };
+    scene.add(sphere);
+    genreBubbles.push(sphere);
+  });
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  scene.add(ambientLight);
+  const pointLight = new THREE.PointLight(0xffffff, 1.2);
+  pointLight.position.set(5, 10, 10);
+  scene.add(pointLight);
+
+  window.addEventListener('click', onGenreClick);
+}
+
+// Handle genre click
+function onGenreClick(event) {
+  const mouse = new THREE.Vector2(
+    (event.clientX / window.innerWidth) * 2 - 1,
+    -(event.clientY / window.innerHeight) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(genreBubbles);
+
+  if (intersects.length > 0) {
+    const clicked = intersects[0].object;
+    const genre = clicked.userData.genre;
+    loadGenrePlaylist(genre);
+  }
+}
+
+// Switch to genre playlist
+function loadGenrePlaylist(genre) {
+  const url = genrePlaylists[genre];
+  audio.src = url;
+  audio.loop = true;
+  audio.play().catch(e => console.log("Autoplay blocked:", e));
+
+  // Glow effect and focus
+  genreBubbles.forEach(b => {
+    b.material.emissive = new THREE.Color(0x000000);
+  });
+  const clicked = genreBubbles.find(b => b.userData.genre === genre);
+  clicked.material.emissive = new THREE.Color(0xffffff);
+}
+
+// Show UI elements
+function showUI() {
+  if (uiVisible) return;
+  uiVisible = true;
+
+  const playlistDiv = document.createElement('div');
+  playlistDiv.id = 'playlist';
+  playlistDiv.style.position = 'absolute';
+  playlistDiv.style.top = '20px';
+  playlistDiv.style.right = '30px';
+  playlistDiv.style.padding = '12px 20px';
+  playlistDiv.style.background = 'rgba(0, 0, 0, 0.4)';
+  playlistDiv.style.borderRadius = '12px';
+  playlistDiv.style.backdropFilter = 'blur(6px)';
+  playlistDiv.style.color = '#fff';
+  playlistDiv.style.fontFamily = 'monospace';
+  playlistDiv.style.border = '1px solid rgba(255,255,255,0.15)';
+  playlistDiv.innerHTML = `<h3>Playlist</h3><p>Click a bubble to switch genre.</p>`;
+  playlistDiv.style.transition = 'opacity 1.5s ease';
+  playlistDiv.style.opacity = '0';
+  document.body.appendChild(playlistDiv);
+  setTimeout(() => playlistDiv.style.opacity = '1', 500);
+
+  // Add genre legend under playlist
+  const legendDiv = document.createElement('div');
+  legendDiv.id = 'legend';
+  legendDiv.style.marginTop = '10px';
+  legendDiv.style.display = 'flex';
+  legendDiv.style.flexWrap = 'wrap';
+  legendDiv.style.gap = '6px';
+  legendDiv.style.opacity = '0.9';
+  Object.keys(genrePlaylists).forEach((genre, i) => {
+    const item = document.createElement('span');
+    item.textContent = genre;
+    item.style.padding = '4px 8px';
+    item.style.borderRadius = '8px';
+    item.style.background = `linear-gradient(90deg, hsl(${(i * 60) % 360}, 60%, 45%), hsl(${(i * 60 + 30) % 360}, 70%, 55%))`;
+    item.style.color = '#fff';
+    item.style.fontSize = '0.85em';
+    item.style.fontWeight = '500';
+    legendDiv.appendChild(item);
+  });
+  playlistDiv.appendChild(legendDiv);
+}
+
+// Animate bubbles
 function animate() {
   requestAnimationFrame(animate);
+  const time = Date.now() * 0.0004;
 
-  t += 0.002;
-  bubbles.children.forEach((bubble, i) => {
-    const angle = bubble.userData.baseAngle + t * bubble.userData.speed;
-    bubble.position.x = Math.cos(angle) * radius;
-    bubble.position.y = Math.sin(angle * 0.7) * radius * 0.6;
-    bubble.position.z = Math.sin(angle) * 20;
-  });
-
-  particles.rotation.y += 0.0005;
-  smokeTextures.forEach((s, i) => {
-    s.rotation.z += (i % 2 === 0 ? 1 : -1) * 0.0003;
+  genreBubbles.forEach((bubble, i) => {
+    const radiusX = 6;
+    const radiusY = 3;
+    const speed = 0.2 * bubble.userData.direction;
+    bubble.position.x = radiusX * Math.cos(time + i);
+    bubble.position.y = radiusY * Math.sin(time * speed + i);
+    bubble.rotation.y += 0.005;
+    bubble.rotation.x += 0.003;
   });
 
   renderer.render(scene, camera);
 }
-animate();
 
-// --- Handle resize ---
+// Start app
+window.addEventListener('load', () => {
+  init();
+  playIntro();
+});
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// --- Fade + Sound Intro ---
-const fadeOverlay = document.createElement('div');
-fadeOverlay.style.position = 'fixed';
-fadeOverlay.style.inset = '0';
-fadeOverlay.style.background = 'rgba(0,0,0,0.95)';
-fadeOverlay.style.transition = 'opacity 1.5s ease';
-fadeOverlay.style.zIndex = '1000';
-document.body.appendChild(fadeOverlay);
-
-const audio = new Audio('https://soundcloud.com/user-200235414/wave-1'); // placeholder fallback
-audio.volume = 0.6;
-
-function playIntro() {
-  if (!localStorage.getItem('hasVisitedDreamBubbles')) {
-    localStorage.setItem('hasVisitedDreamBubbles', 'true');
-    audio.play().catch(() => {}); // ignore autoplay errors
-  }
-}
-
-window.addEventListener('load', () => {
-  fadeOverlay.style.opacity = '0';
-  setTimeout(() => fadeOverlay.remove(), 1500);
-  setTimeout(playIntro, 200);
-  setTimeout(() => {
-    document.getElementById('ui').style.opacity = 1;
-  }, 1800);
 });
