@@ -2,39 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — SoundCloud System</title>
+  <title>Code MQ — Dream Bubbles</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <!-- OrbitControls (for debugging / camera movement) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+  <!-- Firebase (optional) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
+
 <body>
-  <!-- 3D canvas and ribbon -->
-  <canvas id="canvas"></canvas>
-  <div id="ribbon" class="idle"></div>
+  <div id="ui">
+    <button id="toggleTop">☰ Top Artists</button>
+    <div id="leftPanel" class="panel hidden">
+      <h3>Top 50 — Select Genre</h3>
+      <select id="genreSelect"></select>
+      <div id="topList"></div>
+    </div>
 
-  <!-- Top-right UI cluster -->
-  <div id="uiCluster">
-    <!-- Playlist (SoundCloud) -->
     <div id="playlistPanel" class="panel">
-      <h3>Now Playing</h3>
-      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
-        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
-      </iframe>
+      <h3>Playlist</h3>
+      <input id="soundcloudInput" placeholder="Paste SoundCloud playlist URL" />
+      <button id="loadSoundcloud">Load</button>
+      <div id="soundcloudEmbed"></div>
     </div>
+  </div>
 
-    <!-- Genre bar -->
-    <div id="genrePanel" class="panel">
-      <div id="genreBar">
-        <span data-genre="Pop/International" style="color:#ff77ff;">Pop/International</span>
-        <span data-genre="Hard/Techno" style="color:#00ffff;">Hard/Techno</span>
-        <span data-genre="House" style="color:#ffff00;">House</span>
-        <span data-genre="Drum & Bass" style="color:#88ffcc;">Drum & Bass</span>
-        <span data-genre="Dubstep" style="color:#ff66aa;">Dubstep</span>
-      </div>
-    </div>
+  <div id="canvasWrap"></div>
+
+  <div id="legend">
+    <h4>Genres</h4>
+    <ul id="legendList"></ul>
   </div>
 
   <script src="app.js"></script>
