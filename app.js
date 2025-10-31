@@ -413,6 +413,128 @@ function initRibbon(){
   RIBBON.sprite = sprite;
   RIBBON.geometry = geometry;
   RIBBON.points = POINTS;
+     RIBBON.update = function(dt){
+    const timeData = audioController.getTimeDomain?.();
+    const pos = RIBBON.geometry.attributes.position.array;
+    if (timeData){
+      const scaleY = 240;
+      for (let i=0;i<RIBBON.points;i++){
+        const y = ((timeData[i]||128) - 128) / 128 * scaleY;
+        pos[i*3+1] = y * 0.2 + Math.sin(i*0.08 + dt*1.8)*6;
+      }
+      RIBBON.geometry.attributes.position.needsUpdate = true;
+    }
+    const amps = audioController.getAmps?.();
+    if (amps){
+      const baseScale = 1.0 + amps.bass * 0.3;
+      RIBBON.sprite.scale.y = Math.max(40, RIBBON.sprite.scale.x*0.035*baseScale);
+      RIBBON.sprite.material.opacity = 0.45 + amps.rms * 0.55;
+    }
+  };
+}
+initRibbon();
+
+/* ---------- Compute Top Artists (fake / placeholder) ---------- */
+async function computeAndRenderTop(){
+  const all = await readAllVotesOnce();
+  const genreId = genreSelect?.value || GENRES[0].id;
+  const arr = (all[genreId] || []).slice(-500);
+  const counts = {};
+  arr.forEach(v=>{
+    const name = v.artist?.trim();
+    if (!name) return;
+    counts[name] = (counts[name]||0)+1;
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (topList){
+    topList.innerHTML = top.map(([n,c])=>`<div>${escapeHtml(n)} <small>×${c}</small></div>`).join('');
+  }
+}
+
+/* ---------- Animation Loop ---------- */
+let lastT = 0;
+function animate(t){
+  requestAnimationFrame(animate);
+  const dt = (t - lastT)/1000; lastT = t;
+  const amps = audioController.getAmps?.();
+
+  // orbit + pulsate each orb
+  const time = t * 0.0002;
+  for (const g of GENRES){
+    const obj = ORB_MESHES[g.id];
+    if (!obj) continue;
+    const speed = 0.25 + obj.idx * 0.07;
+    const r = CLUSTER_RADIUS * (0.9 + Math.sin(time*0.5 + obj.idx)*0.05);
+    const ang = obj.baseAngle + time*speed;
+    obj.container.position.x = Math.cos(ang) * r;
+    obj.container.position.y = Math.sin(ang*0.9) * r*0.55;
+    obj.container.rotation.y += dt*obj.ringObj.rotationSpeed*0.5;
+    obj.container.rotation.x += dt*obj.ringObj.rotationSpeed*0.2;
+    const pulse = 1 + (amps?.bass||0)*0.25 + Math.sin(t*0.002+obj.idx)*0.05;
+    obj.core.scale.set(pulse,pulse,pulse);
+    obj.gas.material.opacity = 0.03 + (amps?.rms||0)*0.05;
+  }
+
+  // rotate smoke layers slightly
+  smokeBack1.rotation.z += dt*0.01;
+  smokeBack2.rotation.z -= dt*0.008;
+  smokeFront1.rotation.z += dt*0.014;
+  smokeFront2.rotation.z -= dt*0.012;
+  cornerSprites.forEach((s,i)=> s.rotation.z += (i%2?-1:1)*dt*0.015);
+
+  // subtle camera motion
+  camera.position.x = Math.sin(time*0.4)*50;
+  camera.position.y = Math.sin(time*0.8)*20 + 10;
+  camera.lookAt(0,0,0);
+
+  // ribbon
+  RIBBON.update?.(t*0.001);
+
+  // twinkle stars
+  [starsFar, starsNear].forEach(layer=>{
+    const pos = layer.geo.attributes.position.array;
+    const phase = layer.geo.attributes.phase.array;
+    for (let i=0;i<phase.length;i++){
+      const s = 0.9 + Math.sin(t*0.001 + phase[i])*0.1;
+      pos[i*3+1] += Math.sin(t*0.0008 + i)*0.01;
+      layer.mat.size = s * (layer===starsFar?1.0:1.8);
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+/* ---------- Resize ---------- */
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ---------- Basic Interaction ---------- */
+if (loadSpotify){
+  loadSpotify.addEventListener('click', ()=>{
+    const url = spotifyInput?.value?.trim();
+    if (url) audioController.loadUrl(url);
+  });
+}
+if (spotifyEmbed){
+  spotifyEmbed.addEventListener('click', ()=>{
+    if (!audioController.isActive()){
+      audioController.loadUrl('https://cdn.pixabay.com/audio/2023/03/21/audio_7a0f4ad28a.mp3');
+    }
+  });
+}
+
+/* show UI after a short delay */
+setTimeout(()=>{
+  if (uiWrap) { uiWrap.style.transition='opacity 1s'; uiWrap.style.opacity='1'; uiWrap.style.pointerEvents='auto'; }
+  if (legendWrap) { legendWrap.style.transition='opacity 1s'; legendWrap.style.opacity='1'; legendWrap.style.pointerEvents='auto'; }
+}, 1000);
+
+computeAndRenderTop();
+
   RIBBON.width = width;
   RIBBON.baseY = 0;
   RIBBON.currentGenre = null;
