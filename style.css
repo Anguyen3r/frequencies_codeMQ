@@ -1,196 +1,154 @@
-/* === Dream Bubbles — Visual System === */
-/* Flawless cosmic-glass aesthetic with smooth depth and reactive glow */
-
-/* Global Layout & Background */
+/* === General Setup === */
 html, body {
-  height: 100%;
   margin: 0;
-  font-family: 'Inter', system-ui, Arial;
-  background: radial-gradient(ellipse at center, #000010 0%, #000005 100%);
-  color: #fff;
+  padding: 0;
   overflow: hidden;
+  height: 100%;
+  width: 100%;
+  font-family: 'Inter', 'Poppins', 'Helvetica Neue', sans-serif;
+  background: radial-gradient(circle at 20% 20%, #0d0d1a 0%, #01010a 100%);
+  color: #fff;
   user-select: none;
 }
 
-/* 3D Canvas (particles field) */
-canvas {
+/* === Canvas === */
+#canvas {
   position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-/* === Reactive Ribbon === */
-#ribbon {
-  position: fixed;
-  top: 50%;
+  top: 0;
   left: 0;
   width: 100%;
-  height: 3px;
-  transform: translateY(-50%);
-  background: linear-gradient(
-    90deg,
-    rgba(0,255,255,0.3),
-    rgba(255,0,255,0.45),
-    rgba(255,255,0,0.25),
-    rgba(0,255,255,0.3)
-  );
-  background-size: 400% 100%;
-  filter: blur(4px) brightness(1.25);
-  transition: all 0.8s ease;
-  opacity: 0.85;
-  z-index: 2;
-  pointer-events: none;
-  border-radius: 2px;
+  height: 100%;
+  display: block;
+  z-index: 0;
 }
 
-@keyframes idleFlow {
+/* === Ribbon Animation === */
+#ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 6px;
+  width: 100%;
+  background: linear-gradient(90deg, #ff66cc, #66ffff, #ffff66, #ff66cc);
+  background-size: 300% 100%;
+  filter: blur(2px);
+  animation: ribbonFlow 8s linear infinite;
+  opacity: 0.65;
+  z-index: 1;
+}
+
+@keyframes ribbonFlow {
   0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-#ribbon.idle {
-  animation: idleFlow 12s ease-in-out infinite;
-  opacity: 0.7;
+  100% { background-position: 300% 50%; }
 }
 
-/* === Floating Glass UI Cluster === */
+/* === UI Cluster === */
 #uiCluster {
-  position: fixed;
-  top: 24px;
-  right: 32px;
+  position: absolute;
+  top: 5%;
+  right: 4%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  z-index: 30;
+  align-items: flex-end;
+  gap: 1.2rem;
+  z-index: 2;
 }
 
-/* === Glass Panels (Playlist & Genre Bar) === */
-.panel {
-  position: relative;
-  background: rgba(20, 20, 30, 0.55);
+/* === Glass Panel Base === */
+.panel.glass {
   backdrop-filter: blur(14px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
   border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow:
-    0 0 20px rgba(0, 0, 0, 0.55),
-    inset 0 0 6px rgba(255, 255, 255, 0.05);
-  transition: border 0.3s ease, box-shadow 0.3s ease, transform 0.25s ease;
+  padding: 1.2rem 1.6rem;
+  min-width: 260px;
+  transition: all 0.3s ease;
 }
 
-.panel:hover {
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow:
-    0 0 28px rgba(255,255,255,0.06),
-    inset 0 0 10px rgba(255,255,255,0.04);
+.panel.glass:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
 
-/* === Panel Glow Edge Shimmer === */
-.panel::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(120deg,
-    rgba(0,255,255,0.45),
-    rgba(255,0,255,0.35),
-    rgba(255,255,0,0.25),
-    rgba(0,255,255,0.4)
-  );
-  background-size: 400% 400%;
-  animation: shimmer 18s linear infinite;
-  opacity: 0.3;
-  z-index: -1;
-  mix-blend-mode: screen;
-}
-@keyframes shimmer {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
 /* === Playlist Panel === */
-#playlistPanel {
-  font-family: 'Inter', monospace;
+#playlistPanel h3 {
+  margin: 0 0 0.6rem 0;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-size: 1.1rem;
   color: #fff;
 }
-#playlistPanel h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  opacity: 0.95;
-  text-transform: uppercase;
-}
-#playlistPanel iframe {
-  border-radius: 12px;
-  width: 260px;
-  height: 160px;
-  border: none;
-  box-shadow: 0 0 10px rgba(0,255,255,0.15);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-#playlistPanel iframe:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 16px rgba(255,0,255,0.2);
+
+#soundcloudPlayer {
+  border-radius: 10px;
+  width: 100%;
+  height: 140px;
+  overflow: hidden;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
 }
 
 /* === Genre Bar === */
+#genrePanel {
+  text-align: center;
+}
+
 #genreBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
+  justify-content: center;
+  gap: 0.6rem;
 }
+
 #genreBar span {
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 0.75em;
-  letter-spacing: 0.5px;
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
 }
+
 #genreBar span:hover {
-  background: rgba(255,255,255,0.15);
-  transform: scale(1.05);
-}
-#genreBar span.active {
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 0 12px currentColor;
   transform: scale(1.08);
 }
 
-/* === Experience Overlay (Autoplay Fallback) === */
-body > div[style*="Click to Begin"] {
-  font-size: 1.4em;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 10px rgba(255,255,255,0.3);
-  animation: pulseGlow 2.8s ease-in-out infinite;
-}
-@keyframes pulseGlow {
-  0% { text-shadow: 0 0 6px rgba(255,255,255,0.25); opacity: 0.8; }
-  50% { text-shadow: 0 0 14px rgba(255,255,255,0.55); opacity: 1; }
-  100% { text-shadow: 0 0 6px rgba(255,255,255,0.25); opacity: 0.8; }
+/* === Responsive Adjustments === */
+@media (max-width: 768px) {
+  #uiCluster {
+    top: auto;
+    bottom: 5%;
+    right: 50%;
+    transform: translateX(50%);
+    align-items: center;
+  }
+
+  .panel.glass {
+    min-width: 220px;
+    padding: 1rem 1.2rem;
+  }
+
+  #soundcloudPlayer {
+    height: 120px;
+  }
+
+  #genreBar span {
+    font-size: 0.85rem;
+  }
 }
 
-/* === Mobile Responsiveness === */
-@media (max-width: 760px) {
-  #playlistPanel iframe {
-    width: 80vw;
-    height: 160px;
-  }
-  #genreBar span {
-    font-size: 0.7em;
-  }
-  #uiCluster {
-    top: 14px;
-    right: 14px;
-  }
+/* === Particle Overlay Aesthetic === */
+body::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+  z-index: 1;
 }
