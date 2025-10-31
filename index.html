@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Starry Orbs</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orbiting Orbs — Stardust</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="background">
+  <div class="scene">
+    <!-- Stars far back -->
     <canvas id="stars"></canvas>
-    <div class="orbs">
-      <div class="orb orb1"></div>
-      <div class="orb orb2"></div>
-      <div class="orb orb3"></div>
-    </div>
+
+    <!-- Nebula ribbons in middle -->
+    <canvas id="nebula"></canvas>
+
+    <!-- Orbs + trails on top of nebula -->
+    <canvas id="orbs"></canvas>
   </div>
 
   <nav class="navbar">
@@ -21,53 +23,10 @@
       <li><a href="#">Home</a></li>
       <li><a href="#">About</a></li>
       <li><a href="#">Projects</a></li>
-      <li><a href="#">Contact</a></li>
+      <li><a class="active" href="#">Contact</a></li>
     </ul>
   </nav>
 
-  <script>
-    // --- Star twinkle animation ---
-    const canvas = document.getElementById("stars");
-    const ctx = canvas.getContext("2d");
-    let stars = [];
-
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    function initStars() {
-      stars = [];
-      for (let i = 0; i < 200; i++) {
-        stars.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          r: Math.random() * 1.5,
-          alpha: Math.random(),
-          fade: Math.random() * 0.02 + 0.005
-        });
-      }
-    }
-
-    function drawStars() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "white";
-      for (let s of stars) {
-        ctx.globalAlpha = s.alpha;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-        s.alpha += s.fade;
-        if (s.alpha <= 0 || s.alpha >= 1) s.fade = -s.fade;
-      }
-      requestAnimationFrame(drawStars);
-    }
-
-    initStars();
-    drawStars();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
