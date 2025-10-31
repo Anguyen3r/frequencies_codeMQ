@@ -2,41 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Code MQ — Dream Bubbles</title>
+  <title>Dream Bubbles — SoundCloud System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <!-- OrbitControls (for debugging / camera movement) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
-  <!-- Firebase (optional) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
-
 <body>
-  <div id="ui">
-    <button id="toggleTop">☰ Top Artists</button>
-    <div id="leftPanel" class="panel hidden">
-      <h3>Top 50 — Select Genre</h3>
-      <select id="genreSelect"></select>
-      <div id="topList"></div>
-    </div>
+  <!-- 3D canvas and ribbon -->
+  <canvas id="canvas"></canvas>
+  <div id="ribbon" class="idle"></div>
 
+  <!-- Top-right UI cluster -->
+  <div id="uiCluster">
+    <!-- Playlist (SoundCloud) -->
     <div id="playlistPanel" class="panel">
-      <h3>Playlist</h3>
-      <input id="soundcloudInput" placeholder="Paste SoundCloud playlist URL" />
-      <button id="loadSoundcloud">Load</button>
-      <div id="soundcloudEmbed"></div>
+      <h3>Now Playing</h3>
+      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
+        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
+      </iframe>
     </div>
-  </div>
 
-  <div id="canvasWrap"></div>
-
-  <div id="legend">
-    <h4>Genres</h4>
-    <ul id="legendList"></ul>
+    <!-- Genre bar -->
+    <div id="genrePanel" class="panel">
+      <div id="genreBar">
+        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
+        <span data-genre="techno" style="color:#00ffff;">Techno</span>
+        <span data-genre="house" style="color:#ffff00;">House</span>
+        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
+        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
