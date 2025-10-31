@@ -3,89 +3,63 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Codemq — Orbital Genres (AR HUD)</title>
+  <title>Genre Planets — Audio Visual</title>
+
+  <!-- Pixel / techno-ish system font fallback -->
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css" />
-  <!-- Pixel / sci-fi font -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Canvas container (three.js app uses #canvas if present) -->
-  <div id="canvasWrap" class="canvas-wrap">
-    <canvas id="canvas"></canvas>
+  <!-- canvas (Three.js renderer will use this if present) -->
+  <canvas id="canvas"></canvas>
+
+  <!-- UI overlay (initially hidden until interaction) -->
+  <div id="ui">
+    <!-- top-right AR cluster -->
+    <div id="arTopRight" class="panel ar-panel">
+      <!-- Playlist player container (we swap/embed per genre here) -->
+      <div id="playerWrap" class="player-wrap" aria-live="polite">
+        <!-- default placeholder -->
+        <div class="player-placeholder">Select a genre to load playlist</div>
+      </div>
+
+      <!-- genre boxes (simple colored boxes, minimal text) -->
+      <ul id="legendList" class="genre-list" aria-label="Genres">
+        <!-- populated by JS -->
+      </ul>
+
+      <!-- Top 50 scrollable list -->
+      <div id="topPanel" class="top-panel">
+        <div class="top-title">Top Artists</div>
+        <div id="topList" class="top-list" role="listbox" tabindex="0">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- left floating controls (compact) -->
+    <div id="leftPanel" class="panel left-panel">
+      <div class="control-row">
+        <label for="genreSelect" class="sr">Select genre</label>
+        <select id="genreSelect"></select>
+      </div>
+      <button id="toggleTop" class="btn small">Toggle Top</button>
+      <div id="spotifyEmbed" class="spotify-embed"></div>
+    </div>
+
+    <!-- bottom-right world map (static placeholder) -->
+    <div id="mapWrap" class="panel map-panel">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/BlankMap-World-noborders.png/800px-BlankMap-World-noborders.png"
+           alt="World map placeholder" id="worldMap" />
+    </div>
   </div>
 
-  <!-- HUD (top-right): playlist + genres + top50 + map -->
-  <aside id="ui" class="hud">
-    <!-- Playlist panel -->
-    <section class="panel playlist-panel" aria-label="Playlist">
-      <div class="panel-title">Playlist</div>
-      <div id="playlistEmbed" class="playlist-embed">
-        <!-- SoundCloud iframe inserted here by app.js -->
-        <div class="placeholder">Select an orb to load playlist</div>
-      </div>
-    </section>
+  <!-- small accessibility helper -->
+  <div id="ariaStatus" aria-live="polite" class="sr"></div>
 
-    <!-- Genre boxes row -->
-    <section class="panel genre-panel" aria-label="Genres">
-      <div class="panel-title">Genres</div>
-      <div id="genreBoxes" class="genre-boxes" role="toolbar" aria-label="Genre selector">
-        <!-- buttons created in HTML for predictable layout -->
-        <button class="genre-btn" data-genre="techno" id="g-techno">Techno</button>
-        <button class="genre-btn" data-genre="house" id="g-house">House</button>
-        <button class="genre-btn" data-genre="dnb" id="g-dnb">DNB</button>
-        <button class="genre-btn" data-genre="dubstep" id="g-dubstep">Dubstep</button>
-        <button class="genre-btn" data-genre="electronic" id="g-electronic">Electronic</button>
-        <button class="genre-btn" data-genre="pop" id="g-pop">Pop</button>
-      </div>
-    </section>
-
-    <!-- Top50 scrollable list -->
-    <section class="panel top-panel" aria-label="Top 50">
-      <div class="panel-title">Top 50</div>
-      <div id="topList" class="top-list" role="listbox" tabindex="0">
-        <!-- populated by app.js -->
-        <div class="placeholder">No votes yet — click an orb or vote to populate.</div>
-      </div>
-    </section>
-
-    <!-- Static map (bottom-right of HUD region) -->
-    <section class="panel map-panel" aria-label="World map">
-      <div class="panel-title">Map</div>
-      <div id="map" class="map-area" aria-hidden="false">
-        <!-- static holographic world map (SVG) -->
-        <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="g" x1="0" x2="1">
-              <stop offset="0%" stop-color="#88f" stop-opacity="0.16"/>
-              <stop offset="100%" stop-color="#ff88cc" stop-opacity="0.06"/>
-            </linearGradient>
-          </defs>
-          <rect width="100%" height="100%" fill="transparent"/>
-          <g transform="translate(40,40) scale(0.9)">
-            <path d="M0 200 C 100 100, 300 100, 420 180 C 540 260, 740 260, 920 180 L 1100 120 L 1100 460 L 0 460 Z"
-                  fill="url(#g)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-            <!-- rough continent dots -->
-            <circle cx="220" cy="260" r="6" fill="rgba(255,255,255,0.6)" />
-            <circle cx="360" cy="220" r="5" fill="rgba(255,255,255,0.65)" />
-            <circle cx="480" cy="300" r="5" fill="rgba(255,255,255,0.55)" />
-            <circle cx="780" cy="260" r="5" fill="rgba(255,255,255,0.6)" />
-          </g>
-        </svg>
-      </div>
-    </section>
-  </aside>
-
-  <!-- Hidden supporting nodes the app expects -->
-  <div id="legend" class="legend">
-    <ul id="legendList"></ul>
-  </div>
-
-  <!-- Modal & small audio embed container -->
-  <div id="leftPanel" style="display:none"></div>
-  <div id="spotifyEmbed" style="display:none"></div>
-
-  <!-- App script -->
+  <!-- scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
-  <script src="app.js" defer></script>
+  <script src="app.js"></script>
 </body>
 </html>
