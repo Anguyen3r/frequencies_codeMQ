@@ -1,79 +1,131 @@
-/* style.css — polished translucent aesthetic for Genre Planets */
+/* style.css — Honkai / AR inspired HUD + canvas layout */
 
-/* Vars */
+/* Base / fonts */
 :root{
-  --bg1: #02020a;
-  --panel-bg: rgba(18,18,28,0.55);
+  --bg:#000010;
+  --hud-bg: rgba(10,14,22,0.18);
   --glass-border: rgba(255,255,255,0.06);
-  --muted: #c6d8f6;
-  --accent: #a6b8ff;
+  --accent: #7af;
+  --panel-radius: 8px;
+  --hud-gap: 14px;
+  --mono-font: "Press Start 2P", "Orbitron", monospace;
 }
-
-/* Reset */
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:
-  radial-gradient(ellipse at center,#000014 0%, #02020a 65%, #000 100%); color:#fff; overflow:hidden}
+html,body{height:100%;margin:0;background:var(--bg);font-family:Orbitron,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+.canvas-wrap{position:fixed;inset:0;overflow:hidden;z-index:0;}
+canvas#canvas{display:block;width:100vw;height:100vh;}
 
-/* Canvas wrapper */
-#canvasWrap{position:fixed;inset:0;z-index:0;pointer-events:none}
-
-/* Ribbon */
-#ribbon{
-  position:fixed; left:0; top:50%; transform:translateY(-50%);
-  width:100%; height:6px; pointer-events:none; z-index:3;
-  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(200,180,255,0.12), rgba(120,240,255,0.08), rgba(255,255,255,0.02));
-  filter: blur(4px) brightness(1.1); opacity:0.75; transition: opacity 220ms ease, filter 220ms ease;
-  background-size: 300% 100%;
+/* HUD container (top-right cluster) */
+.hud{
+  position:fixed;
+  top:20px;
+  right:20px;
+  width:380px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  z-index:20;
+  transform: translateZ(0);
+  -webkit-font-smoothing:antialiased;
 }
-@keyframes idleFlow { 0%{background-position:0%} 50%{background-position:100%} 100%{background-position:0%} }
-#ribbon.idle{ animation: idleFlow 14s linear infinite }
 
-/* UI cluster (top-right) */
-#uiCluster{ position:fixed; top:18px; right:22px; display:flex; flex-direction:column; gap:12px; z-index:30; pointer-events:auto; }
-
-/* Panels */
-.panel{ min-width:220px; background:var(--panel-bg); border-radius:12px; padding:12px; border:1px solid var(--glass-border);
-  backdrop-filter: blur(10px) saturate(140%); box-shadow: 0 14px 40px rgba(0,0,0,0.5); color:var(--muted); }
-.panel h3, .panel h4{ margin:0 0 8px 0; color:#eaf3ff; font-weight:600; }
-
-/* playlist iframe */
-#playlistPanel iframe{ width:260px; height:140px; border-radius:10px; border:0; display:block }
-
-/* Genre chips */
-#genreBar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-.chip{ padding:7px 10px; border-radius:10px; background:rgba(255,255,255,0.02); cursor:pointer; font-size:13px; transition: transform .12s ease, box-shadow .12s ease, background .12s ease; color:#fff; }
-.chip:hover{ transform:translateY(-3px); box-shadow:0 8px 26px rgba(0,0,0,0.45) }
-.chip.active{ background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); transform:scale(1.04) }
-
-/* Floating legend below chips (no title) */
-#floatingLegend{ margin-top:8px; display:flex; justify-content:flex-start }
-#legendList{ list-style:none; margin:0; padding:0; display:flex; gap:8px; flex-direction:column }
-#legendList li{ display:flex; gap:10px; align-items:center; font-size:13px }
-.legendDot{ width:12px; height:12px; border-radius:50%; box-shadow:0 0 18px currentColor; }
-
-/* Top 50 scroller */
-.scroller{ max-height:260px; overflow:auto; padding-right:6px; }
-.row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed rgba(255,255,255,0.03) }
-.row strong{ color:#eaf3ff; font-size:13px }
-
-/* Map cluster bottom-right */
-#mapCluster{ position:fixed; right:18px; bottom:18px; z-index:30; width:220px; min-height:140px; pointer-events:auto }
-#worldMap{ width:100%; height:100px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#cfe6ff; font-size:12px }
-
-/* Modal */
-.modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:999; min-width:320px; max-width:92vw; }
-.formRow{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px }
-
-/* Buttons */
-button{ cursor:pointer }
-.btnPrimary{ background:linear-gradient(90deg,#4f8bff,#8d6bff); padding:8px 12px; color:#fff; border-radius:8px; border:0 }
-.btnGhost{ background:transparent; color:#eaf3ff; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:8px }
-
-/* map dots */
-.mapDot{ width:10px; height:10px; border-radius:50%; box-shadow:0 0 8px rgba(255,255,255,0.08); }
-
-/* Responsive */
-@media (max-width:760px){
-  #playlistPanel iframe{ width:calc(80vw); height:120px }
-  #uiCluster{ right:10px; top:12px }
+/* Common panel look : glassy, pixelated overlay */
+.panel{
+  backdrop-filter: blur(6px) saturate(120%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%);
+  border:1px solid var(--glass-border);
+  border-radius: var(--panel-radius);
+  padding:10px;
+  box-shadow: 0 6px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  color:#dbeffd;
+  font-size:12px;
+  letter-spacing:0.4px;
+  min-width: 200px;
 }
+
+/* Titles: tiny pixel / tech label */
+.panel-title{
+  font-family: var(--mono-font);
+  font-size:10px;
+  color:#8fb8ff;
+  text-transform:uppercase;
+  margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;
+}
+
+/* Playlist area */
+.playlist-panel{padding:10px 12px;}
+.playlist-embed{
+  width:100%;
+  height:92px;
+  border-radius:6px;
+  overflow:hidden;
+  background: rgba(0,0,0,0.12);
+  display:flex;align-items:center;justify-content:center;
+}
+.playlist-embed iframe{width:100%;height:100%;border:none;}
+
+/* Genre boxes row */
+.genre-panel{padding:10px 12px;}
+.genre-boxes{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.genre-btn{
+  flex:1 1 30%;
+  padding:8px 6px;
+  min-width:56px;
+  text-align:center;
+  border-radius:6px;
+  font-weight:700;
+  font-size:11px;
+  cursor:pointer;
+  border: 1px solid rgba(255,255,255,0.04);
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px rgba(255,255,255,0.02);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  color:#001;
+  filter: contrast(1.06) saturate(1.06);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.02);
+  font-family: "Orbitron", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.genre-btn:active{transform:translateY(1px)}
+
+/* genre specific colors (outline glow & text color) */
+#g-techno{ background: linear-gradient(180deg,#ff4f79aa,#ff4f79cc); color:#fff; box-shadow:0 8px 26px rgba(255,79,121,0.12), 0 0 14px rgba(255,79,121,0.12) }
+#g-house { background: linear-gradient(180deg,#ffbf5faa,#ffbf5fcc); color:#000; box-shadow:0 8px 26px rgba(255,191,95,0.12), 0 0 14px rgba(255,191,95,0.12) }
+#g-dnb   { background: linear-gradient(180deg,#5fff85aa,#5fff85cc); color:#000; box-shadow:0 8px 26px rgba(95,255,133,0.10), 0 0 14px rgba(95,255,133,0.10) }
+#g-dubstep{ background: linear-gradient(180deg,#5fc9ffaa,#5fc9ffcc); color:#000; box-shadow:0 8px 26px rgba(95,201,255,0.10), 0 0 14px rgba(95,201,255,0.10) }
+#g-electronic{ background: linear-gradient(180deg,#9f5fffaa,#9f5fffcc); color:#fff; box-shadow:0 8px 26px rgba(159,95,255,0.10), 0 0 14px rgba(159,95,255,0.10) }
+#g-pop   { background: linear-gradient(180deg,#ff66aaff,#ff66aacc); color:#fff; box-shadow:0 8px 26px rgba(255,102,170,0.12), 0 0 14px rgba(255,102,170,0.12) }
+
+/* Top list (scrollable) */
+.top-panel{padding:10px 12px; max-height:220px; overflow:visible;}
+.top-list{
+  height:180px;
+  overflow:auto;
+  padding:8px;
+  border-radius:6px;
+  background: rgba(0,0,0,0.06);
+  border:1px solid rgba(255,255,255,0.02);
+}
+.top-list .row{
+  display:flex;justify-content:space-between;align-items:center;padding:6px 8px;margin-bottom:6px;border-radius:4px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.006));
+  color:#e6f2ff;font-size:12px;
+}
+.top-list .row strong{font-weight:700;font-family:Orbitron; font-size:11px}
+.top-list .row .score{color:#a8d7ff;font-size:11px;opacity:0.9}
+
+/* Map panel */
+.map-panel{padding:10px 12px;}
+.map-area{height:86px;border-radius:6px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.00));display:flex;align-items:center;justify-content:center}
+
+/* small helpers */
+.placeholder{color:rgba(255,255,255,0.28);font-size:11px;text-align:center;padding:8px}
+
+/* legend (offscreen minimal) */
+.legend{position:fixed; right:24px; top:230px; opacity:0; pointer-events:none}
+.legend ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+
+/* Make scrollbars subtle & AR-like */
+.top-list::-webkit-scrollbar{width:8px;height:8px}
+.top-list::-webkit-scrollbar-thumb{background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));border-radius:6px}
