@@ -2,65 +2,90 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Genre Planets — Orbital SoundCloud Player</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Codemq — Orbital Genres (AR HUD)</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
-  <!-- SoundCloud Widget -->
-  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <!-- Pixel / sci-fi font -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="canvasWrap"></div>
-  <!-- ribbon wave (dom visual element) -->
-  <div id="ribbon" class="idle" aria-hidden="true"></div>
-
-  <!-- Top-right UI cluster: playlist above genre chips + floating legend + top50 -->
-  <div id="uiCluster">
-    <div id="playlistPanel" class="panel">
-      <h3>Now Playing</h3>
-      <!-- SoundCloud iframe will load the selected playlist URL -->
-      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
-        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false">
-      </iframe>
-    </div>
-
-    <div id="genresPanel" class="panel">
-      <div id="genreBar" role="list">
-        <!-- chips created in JS for consistent mapping; static fallbacks here -->
-        <span data-genre="techno" class="chip" style="--chip-color:#ff3333">Hard / Techno</span>
-        <span data-genre="house" class="chip" style="--chip-color:#ff8c1a">House</span>
-        <span data-genre="dnb" class="chip" style="--chip-color:#5fff85">Drum & Bass</span>
-        <span data-genre="dubstep" class="chip" style="--chip-color:#9b5fff">Dubstep</span>
-        <span data-genre="electronic" class="chip" style="--chip-color:#4f8bff">Electronic / Dance</span>
-        <span data-genre="pop" class="chip" style="--chip-color:#ff77ff">Pop / International</span>
-      </div>
-
-      <!-- floating legend area — intentionally unlabeled; sits below the chips -->
-      <div id="floatingLegend" aria-hidden="true">
-        <ul id="legendList"></ul>
-      </div>
-    </div>
-
-    <div id="top50Panel" class="panel">
-      <h4>Top 50 (by selected genre)</h4>
-      <div id="topList" class="scroller"></div>
-    </div>
+  <!-- Canvas container (three.js app uses #canvas if present) -->
+  <div id="canvasWrap" class="canvas-wrap">
+    <canvas id="canvas"></canvas>
   </div>
 
-  <!-- bottom-right map & analytics -->
-  <div id="mapCluster" class="panel small">
-    <h4>Country Votes</h4>
-    <div id="worldMap" title="Country vote map" aria-hidden="false"></div>
+  <!-- HUD (top-right): playlist + genres + top50 + map -->
+  <aside id="ui" class="hud">
+    <!-- Playlist panel -->
+    <section class="panel playlist-panel" aria-label="Playlist">
+      <div class="panel-title">Playlist</div>
+      <div id="playlistEmbed" class="playlist-embed">
+        <!-- SoundCloud iframe inserted here by app.js -->
+        <div class="placeholder">Select an orb to load playlist</div>
+      </div>
+    </section>
+
+    <!-- Genre boxes row -->
+    <section class="panel genre-panel" aria-label="Genres">
+      <div class="panel-title">Genres</div>
+      <div id="genreBoxes" class="genre-boxes" role="toolbar" aria-label="Genre selector">
+        <!-- buttons created in HTML for predictable layout -->
+        <button class="genre-btn" data-genre="techno" id="g-techno">Techno</button>
+        <button class="genre-btn" data-genre="house" id="g-house">House</button>
+        <button class="genre-btn" data-genre="dnb" id="g-dnb">DNB</button>
+        <button class="genre-btn" data-genre="dubstep" id="g-dubstep">Dubstep</button>
+        <button class="genre-btn" data-genre="electronic" id="g-electronic">Electronic</button>
+        <button class="genre-btn" data-genre="pop" id="g-pop">Pop</button>
+      </div>
+    </section>
+
+    <!-- Top50 scrollable list -->
+    <section class="panel top-panel" aria-label="Top 50">
+      <div class="panel-title">Top 50</div>
+      <div id="topList" class="top-list" role="listbox" tabindex="0">
+        <!-- populated by app.js -->
+        <div class="placeholder">No votes yet — click an orb or vote to populate.</div>
+      </div>
+    </section>
+
+    <!-- Static map (bottom-right of HUD region) -->
+    <section class="panel map-panel" aria-label="World map">
+      <div class="panel-title">Map</div>
+      <div id="map" class="map-area" aria-hidden="false">
+        <!-- static holographic world map (SVG) -->
+        <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0%" stop-color="#88f" stop-opacity="0.16"/>
+              <stop offset="100%" stop-color="#ff88cc" stop-opacity="0.06"/>
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="transparent"/>
+          <g transform="translate(40,40) scale(0.9)">
+            <path d="M0 200 C 100 100, 300 100, 420 180 C 540 260, 740 260, 920 180 L 1100 120 L 1100 460 L 0 460 Z"
+                  fill="url(#g)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            <!-- rough continent dots -->
+            <circle cx="220" cy="260" r="6" fill="rgba(255,255,255,0.6)" />
+            <circle cx="360" cy="220" r="5" fill="rgba(255,255,255,0.65)" />
+            <circle cx="480" cy="300" r="5" fill="rgba(255,255,255,0.55)" />
+            <circle cx="780" cy="260" r="5" fill="rgba(255,255,255,0.6)" />
+          </g>
+        </svg>
+      </div>
+    </section>
+  </aside>
+
+  <!-- Hidden supporting nodes the app expects -->
+  <div id="legend" class="legend">
+    <ul id="legendList"></ul>
   </div>
 
-  <!-- Vote modal placeholder appended by JS -->
-  <div id="modalRoot"></div>
+  <!-- Modal & small audio embed container -->
+  <div id="leftPanel" style="display:none"></div>
+  <div id="spotifyEmbed" style="display:none"></div>
 
-  <!-- Hidden / helper elements used by app.js -->
-  <select id="genreSelect" style="display:none"></select>
-
-  <script src="app.js"></script>
+  <!-- App script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
