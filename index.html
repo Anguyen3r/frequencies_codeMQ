@@ -1,46 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reborning Sound Atlas</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8" />
+  <title>Dream Bubbles — Mobile Console</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <div id="app">
-    <header class="header">
-      <h1 class="title">Reborning Sound Atlas</h1>
-      <p class="subtitle">Explore Genres • Artists • Worlds</p>
-    </header>
+  <!-- 3D Canvas -->
+  <canvas id="canvas"></canvas>
 
-    <main class="main-container">
-      <!-- Genre Toggle and Label -->
-      <div class="genre-toggle">
-        <div class="genre-label">Select Genre</div>
-        <select id="genreSelect" class="genre-dropdown">
-          <option value="techno">Techno</option>
-          <option value="hardtechno">Hard Techno</option>
-          <option value="trance">Trance</option>
-          <option value="house">House</option>
-          <option value="drumandbass">Drum & Bass</option>
-          <option value="breakbeat">Breakbeat</option>
-          <option value="ambient">Ambient</option>
-        </select>
-      </div>
+  <!-- Floating UI cluster -->
+  <div id="ui">
+    <!-- Music Player -->
+    <div id="playerContainer">
+      <iframe id="spotifyPlayer" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    </div>
 
-      <!-- Planet Visualization -->
-      <div id="planetContainer" class="planet-container"></div>
+    <!-- Genre Buttons -->
+    <div id="genreCluster">
+      <button class="genre-btn" data-genre="hardtechno" style="--glow:#ff0000;">Hard Techno</button>
+      <button class="genre-btn" data-genre="techno" style="--glow:#ff3300;">Techno</button>
+      <button class="genre-btn" data-genre="house" style="--glow:#ff8800;">House</button>
+      <button class="genre-btn" data-genre="dnb" style="--glow:#00ff66;">Drum & Bass</button>
+      <button class="genre-btn" data-genre="dubstep" style="--glow:#aa33ff;">Dubstep</button>
+      <button class="genre-btn" data-genre="edm" style="--glow:#3388ff;">Electronic</button>
+      <button class="genre-btn" data-genre="pop" style="--glow:#ff66cc;">Pop</button>
+    </div>
 
-      <!-- Top 50 Artist List -->
-      <div class="top50-container">
-        <h2>Top 50 Artists</h2>
-        <ul id="top50List" class="top50-list"></ul>
-      </div>
-    </main>
-
-    <footer class="footer">
-      <p>© 2025 Reborning — Built for Music Lovers</p>
-    </footer>
+    <!-- Top 50 list -->
+    <div id="chartPanel">
+      <h3>Top 50 Artists</h3>
+      <ul id="chartList"></ul>
+    </div>
   </div>
 
   <script src="app.js"></script>
