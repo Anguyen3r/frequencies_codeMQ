@@ -1,56 +1,152 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import "./style.css";
-import PlanetOrbs from "./PlanetOrbs";
-import NebulaWave from "./NebulaWave";
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dream Bubbles — Mobile Space Interface</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+      color: white;
+      font-family: 'Inter', sans-serif;
+      touch-action: none;
+    }
 
-const App = () => {
-  return (
-    <div className="app-container">
-      {/* Background nebula */}
-      <NebulaWave />
+    canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      display: block;
+    }
 
-      {/* Floating planets */}
-      <PlanetOrbs />
+    #genreBar {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: space-evenly;
+      gap: 4px;
+      padding: 8px;
+      background: rgba(10,10,25,0.45);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      z-index: 10;
+    }
 
-      {/* Overlay interface */}
-      <div className="ui-overlay">
-        <header className="header">
-          <h1 className="app-title">Frequency Space</h1>
-          <p className="subtitle">Explore the 7 worlds of sound</p>
-        </header>
+    #genreBar span {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.8em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.1);
+    }
 
-        {/* Genre toggle / legend */}
-        <div className="genre-bar">
-          <div className="genre hardtechno">Hard Techno</div>
-          <div className="genre techno">Techno</div>
-          <div className="genre house">House</div>
-          <div className="genre dnb">Drum & Bass</div>
-          <div className="genre dubstep">Dubstep</div>
-          <div className="genre electronic">Electronic / Dance</div>
-          <div className="genre pop">Pop / International</div>
-        </div>
+    #genreBar span[data-genre="hardtechno"] { color: #ff0000; }
+    #genreBar span[data-genre="techno"] { color: #a000ff; }
+    #genreBar span[data-genre="house"] { color: #ff8000; }
+    #genreBar span[data-genre="drumnbass"] { color: #00ff00; }
+    #genreBar span[data-genre="dubstep"] { color: #00ffff; }
+    #genreBar span[data-genre="electronic"] { color: #0f52ba; } /* sapphire */
+    #genreBar span[data-genre="pop"] { color: #ff66cc; }
+  </style>
+</head>
+<body>
+  <canvas id="nebula"></canvas>
+  <canvas id="planets"></canvas>
 
-        {/* Placeholder for chart section */}
-        <div className="chart-container">
-          <h2>Top 50 Artists</h2>
-          <ul className="artist-list">
-            <li>Charlotte de Witte</li>
-            <li>Amelie Lens</li>
-            <li>Reinier Zonneveld</li>
-            <li>Dom Dolla</li>
-            <li>Sub Focus</li>
-            <li>Virtual Riot</li>
-            <li>Calvin Harris</li>
-            <li>Fred again..</li>
-            <li>Martin Garrix</li>
-            <li>Dua Lipa</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-};
+  <div id="genreBar">
+    <span data-genre="hardtechno">Hard Techno</span>
+    <span data-genre="techno">Techno</span>
+    <span data-genre="house">House</span>
+    <span data-genre="drumnbass">Drum & Bass</span>
+    <span data-genre="dubstep">Dubstep</span>
+    <span data-genre="electronic">Electronic</span>
+    <span data-genre="pop">Pop</span>
+  </div>
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+  <script>
+    // 🌌 Nebula Wave Background
+    const nebula = document.getElementById("nebula");
+    const nCtx = nebula.getContext("2d");
+    const resizeNebula = () => {
+      nebula.width = innerWidth;
+      nebula.height = innerHeight;
+    };
+    resizeNebula();
+    window.addEventListener("resize", resizeNebula);
+    const nebulaColors = [
+      "rgba(255,0,0,0.2)", "rgba(160,0,255,0.2)", "rgba(255,128,0,0.2)",
+      "rgba(0,255,0,0.2)", "rgba(0,255,255,0.2)", "rgba(15,82,186,0.2)", "rgba(255,102,204,0.2)"
+    ];
+    let t = 0;
+    function drawNebula() {
+      nCtx.clearRect(0,0,nebula.width,nebula.height);
+      nebulaColors.forEach((c,i)=>{
+        nCtx.beginPath();
+        for(let y=0;y<nebula.height;y+=5){
+          const x = nebula.width/2 + Math.sin(y*0.01+t*0.002+i)*80*Math.sin(t*0.001+i);
+          y===0?nCtx.moveTo(x,y):nCtx.lineTo(x,y);
+        }
+        nCtx.strokeStyle = c;
+        nCtx.lineWidth = 40;
+        nCtx.shadowColor = c;
+        nCtx.shadowBlur = 50;
+        nCtx.stroke();
+      });
+      t += 2;
+      requestAnimationFrame(drawNebula);
+    }
+    drawNebula();
+
+    // 🪐 Planets
+    const planets = document.getElementById("planets");
+    const pCtx = planets.getContext("2d");
+    const resizePlanets = () => {
+      planets.width = innerWidth;
+      planets.height = innerHeight;
+    };
+    resizePlanets();
+    window.addEventListener("resize", resizePlanets);
+
+    const planetData = [
+      { color: "#ff0000", orbitR: 80, size: 12 },
+      { color: "#a000ff", orbitR: 120, size: 10 },
+      { color: "#ff8000", orbitR: 160, size: 14 },
+      { color: "#00ff00", orbitR: 200, size: 10 },
+      { color: "#00ffff", orbitR: 240, size: 12 },
+      { color: "#0f52ba", orbitR: 280, size: 13 },
+      { color: "#ff66cc", orbitR: 320, size: 15 },
+    ];
+    let angle = 0;
+    function drawPlanets() {
+      pCtx.clearRect(0, 0, planets.width, planets.height);
+      const cx = planets.width/2;
+      const cy = planets.height/2;
+      planetData.forEach((p,i)=>{
+        const dir = i%2===0 ? 1 : -1;
+        const x = cx + Math.cos(angle*0.002*i*dir+i)*p.orbitR;
+        const y = cy + Math.sin(angle*0.002*i*dir+i)*p.orbitR;
+        // outer glow ring
+        pCtx.beginPath();
+        const grad = pCtx.createRadialGradient(x,y,0,x,y,p.size*3);
+        grad.addColorStop(0, p.color+"55");
+        grad.addColorStop(1, "transparent");
+        pCtx.fillStyle = grad;
+        pCtx.arc(x,y,p.size*3,0,Math.PI*2);
+        pCtx.fill();
+        // planet core
+        pCtx.beginPath();
+        pCtx.fillStyle = p.color;
+        pCtx.arc(x,y,p.size,0,Math.PI*2);
+        pCtx.fill();
+      });
+      angle += 1;
+      requestAnimationFrame(drawPlanets);
+    }
+    drawPlanets();
+  </script>
+</body>
+</html>
