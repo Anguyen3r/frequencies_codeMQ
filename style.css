@@ -1,100 +1,62 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* Reset */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  overflow: hidden;
-  background: radial-gradient(ellipse at bottom, #0a0a0a 0%, #000000 100%);
-  height: 100vh;
-  color: white;
-  font-family: 'Poppins', sans-serif;
-}
-
-/* --- Star canvas --- */
-#stars {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 0;
-}
-
-/* --- Orbs --- */
-.orbs {
-  position: absolute;
-  width: 100%;
+html, body {
   height: 100%;
-  z-index: 1;
+  width: 100%;
+  background: #000;
+  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
 }
 
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.6;
-  animation: float 10s infinite ease-in-out alternate;
+.scene {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
 
-.orb1 {
-  width: 250px;
-  height: 250px;
-  background: rgba(255, 100, 200, 0.6);
-  top: 20%;
-  left: 15%;
-  animation-delay: 0s;
-}
+/* Canvas stacking order (lower z = further back) */
+#stars { position: absolute; inset: 0; z-index: 0; }
+#nebula { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+#orbs { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 
-.orb2 {
-  width: 300px;
-  height: 300px;
-  background: rgba(100, 200, 255, 0.6);
-  top: 50%;
-  left: 60%;
-  animation-delay: 3s;
-}
-
-.orb3 {
-  width: 200px;
-  height: 200px;
-  background: rgba(255, 255, 150, 0.6);
-  top: 70%;
-  left: 30%;
-  animation-delay: 6s;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px) translateX(0px); }
-  100% { transform: translateY(-30px) translateX(20px); }
-}
-
-/* --- Navbar --- */
+/* Navbar - transparent black glass style at bottom */
 .navbar {
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
-  border-radius: 30px;
-  padding: 10px 30px;
   z-index: 10;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px) saturate(1.1);
+  border-radius: 28px;
+  padding: 10px 28px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
 }
 
 .navbar ul {
   display: flex;
-  list-style: none;
   gap: 30px;
+  list-style: none;
+  align-items: center;
 }
 
 .navbar a {
-  color: white;
   text-decoration: none;
+  color: #e9e9e9;
   font-weight: 500;
-  transition: color 0.3s;
+  letter-spacing: 0.2px;
+  transition: color 180ms ease;
 }
 
-.navbar a:hover {
-  color: #00ffff;
+.navbar a:hover { color: #7be6e6; }
+.navbar a.active { color: #12c2d6; }
+
+/* Make sure content doesn't overlap OS chrome on mobile */
+@media (max-width: 420px) {
+  .navbar { bottom: 12px; padding: 8px 18px; gap: 12px; }
+  .navbar ul { gap: 18px; font-size: 16px; }
 }
