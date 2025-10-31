@@ -1,152 +1,165 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Dream Bubbles — Mobile Space Interface</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celestial Sound Orbit</title>
   <style>
-    html, body {
+    /* Global reset */
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
       height: 100%;
+      width: 100%;
       overflow: hidden;
-      background: black;
+      background: radial-gradient(ellipse at center, #02040a 0%, #000000 100%);
       color: white;
       font-family: 'Inter', sans-serif;
-      touch-action: none;
+      position: relative;
     }
 
+    /* Canvas for stars */
     canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      display: block;
-    }
-
-    #genreBar {
-      position: fixed;
-      bottom: 10px;
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* Planet container */
+    .orbit {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 280px;
       display: flex;
-      justify-content: space-evenly;
-      gap: 4px;
-      padding: 8px;
-      background: rgba(10,10,25,0.45);
-      backdrop-filter: blur(12px);
-      border-top: 1px solid rgba(255,255,255,0.08);
-      z-index: 10;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
     }
 
-    #genreBar span {
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.8em;
-      text-transform: uppercase;
-      background: rgba(255,255,255,0.1);
+    .planet {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(255,255,255,0.6);
+      animation: spin 14s linear infinite;
     }
 
-    #genreBar span[data-genre="hardtechno"] { color: #ff0000; }
-    #genreBar span[data-genre="techno"] { color: #a000ff; }
-    #genreBar span[data-genre="house"] { color: #ff8000; }
-    #genreBar span[data-genre="drumnbass"] { color: #00ff00; }
-    #genreBar span[data-genre="dubstep"] { color: #00ffff; }
-    #genreBar span[data-genre="electronic"] { color: #0f52ba; } /* sapphire */
-    #genreBar span[data-genre="pop"] { color: #ff66cc; }
+    /* Individual genre planets */
+    .hard-techno { background: #ff1e1e; }      /* Red */
+    .techno { background: #b800ff; }           /* Purple */
+    .house { background: #ff8c00; }            /* Orange */
+    .drum-bass { background: #00ff66; }        /* Green */
+    .dubstep { background: #00ffff; }          /* Cyan */
+    .electronic { background: #0f52ba; }       /* Sapphire */
+    .pop { background: #ff4da6; }              /* Pink */
+
+    @keyframes spin {
+      from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+    }
+
+    /* Optional label style */
+    .label {
+      position: absolute;
+      bottom: 8px;
+      width: 100%;
+      text-align: center;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    /* Glow overlay */
+    .glow-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(120,150,255,0.35) 0%, rgba(0,0,0,0) 80%);
+      filter: blur(40px);
+      z-index: 1;
+    }
+
   </style>
 </head>
 <body>
-  <canvas id="nebula"></canvas>
-  <canvas id="planets"></canvas>
-
-  <div id="genreBar">
-    <span data-genre="hardtechno">Hard Techno</span>
-    <span data-genre="techno">Techno</span>
-    <span data-genre="house">House</span>
-    <span data-genre="drumnbass">Drum & Bass</span>
-    <span data-genre="dubstep">Dubstep</span>
-    <span data-genre="electronic">Electronic</span>
-    <span data-genre="pop">Pop</span>
+  <canvas id="starfield"></canvas>
+  <div class="glow-center"></div>
+  <div class="orbit">
+    <div class="planet hard-techno"></div>
+    <div class="planet techno"></div>
+    <div class="planet house"></div>
+    <div class="planet drum-bass"></div>
+    <div class="planet dubstep"></div>
+    <div class="planet electronic"></div>
+    <div class="planet pop"></div>
   </div>
 
   <script>
-    // 🌌 Nebula Wave Background
-    const nebula = document.getElementById("nebula");
-    const nCtx = nebula.getContext("2d");
-    const resizeNebula = () => {
-      nebula.width = innerWidth;
-      nebula.height = innerHeight;
-    };
-    resizeNebula();
-    window.addEventListener("resize", resizeNebula);
-    const nebulaColors = [
-      "rgba(255,0,0,0.2)", "rgba(160,0,255,0.2)", "rgba(255,128,0,0.2)",
-      "rgba(0,255,0,0.2)", "rgba(0,255,255,0.2)", "rgba(15,82,186,0.2)", "rgba(255,102,204,0.2)"
-    ];
-    let t = 0;
-    function drawNebula() {
-      nCtx.clearRect(0,0,nebula.width,nebula.height);
-      nebulaColors.forEach((c,i)=>{
-        nCtx.beginPath();
-        for(let y=0;y<nebula.height;y+=5){
-          const x = nebula.width/2 + Math.sin(y*0.01+t*0.002+i)*80*Math.sin(t*0.001+i);
-          y===0?nCtx.moveTo(x,y):nCtx.lineTo(x,y);
-        }
-        nCtx.strokeStyle = c;
-        nCtx.lineWidth = 40;
-        nCtx.shadowColor = c;
-        nCtx.shadowBlur = 50;
-        nCtx.stroke();
-      });
-      t += 2;
-      requestAnimationFrame(drawNebula);
-    }
-    drawNebula();
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
 
-    // 🪐 Planets
-    const planets = document.getElementById("planets");
-    const pCtx = planets.getContext("2d");
-    const resizePlanets = () => {
-      planets.width = innerWidth;
-      planets.height = innerHeight;
-    };
-    resizePlanets();
-    window.addEventListener("resize", resizePlanets);
-
-    const planetData = [
-      { color: "#ff0000", orbitR: 80, size: 12 },
-      { color: "#a000ff", orbitR: 120, size: 10 },
-      { color: "#ff8000", orbitR: 160, size: 14 },
-      { color: "#00ff00", orbitR: 200, size: 10 },
-      { color: "#00ffff", orbitR: 240, size: 12 },
-      { color: "#0f52ba", orbitR: 280, size: 13 },
-      { color: "#ff66cc", orbitR: 320, size: 15 },
-    ];
-    let angle = 0;
-    function drawPlanets() {
-      pCtx.clearRect(0, 0, planets.width, planets.height);
-      const cx = planets.width/2;
-      const cy = planets.height/2;
-      planetData.forEach((p,i)=>{
-        const dir = i%2===0 ? 1 : -1;
-        const x = cx + Math.cos(angle*0.002*i*dir+i)*p.orbitR;
-        const y = cy + Math.sin(angle*0.002*i*dir+i)*p.orbitR;
-        // outer glow ring
-        pCtx.beginPath();
-        const grad = pCtx.createRadialGradient(x,y,0,x,y,p.size*3);
-        grad.addColorStop(0, p.color+"55");
-        grad.addColorStop(1, "transparent");
-        pCtx.fillStyle = grad;
-        pCtx.arc(x,y,p.size*3,0,Math.PI*2);
-        pCtx.fill();
-        // planet core
-        pCtx.beginPath();
-        pCtx.fillStyle = p.color;
-        pCtx.arc(x,y,p.size,0,Math.PI*2);
-        pCtx.fill();
-      });
-      angle += 1;
-      requestAnimationFrame(drawPlanets);
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      stars = [];
+      for (let i = 0; i < 300; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.2,
+          alpha: Math.random(),
+          speed: 0.005 + Math.random() * 0.02
+        });
+      }
     }
-    drawPlanets();
+
+    function drawStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background glow (more concentrated in the center)
+      const gradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, canvas.width / 2
+      );
+      gradient.addColorStop(0, "rgba(20,30,60,0.7)");
+      gradient.addColorStop(0.2, "rgba(0,0,0,0.6)");
+      gradient.addColorStop(1, "rgba(0,0,0,1)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw stars
+      for (let star of stars) {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        const distanceFromCenter = Math.abs(star.x - canvas.width / 2) + Math.abs(star.y - canvas.height / 2);
+        const density = Math.max(0, 1 - distanceFromCenter / (canvas.width / 2));
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha * (0.5 + density)})`;
+        ctx.fill();
+        star.alpha += star.speed * (Math.random() > 0.5 ? 1 : -1);
+        if (star.alpha < 0) star.alpha = 0;
+        if (star.alpha > 1) star.alpha = 1;
+      }
+      requestAnimationFrame(drawStars);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    drawStars();
   </script>
 </body>
 </html>
