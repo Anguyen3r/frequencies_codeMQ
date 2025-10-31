@@ -1,35 +1,26 @@
-/* DREAM BUBBLES — MOBILE CONSOLE */
-/* Core visual identity: translucent AR glass, neon edges, cosmic fluidity */
-
-:root {
-  --bg: #030312;
-  --panel-glass: rgba(255, 255, 255, 0.05);
-  --border-glow: rgba(255, 255, 255, 0.25);
-  --text-glow: 0 0 4px rgba(255, 255, 255, 0.8);
-  --font-main: 'Orbitron', sans-serif;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-
+/* --- Global reset and base styles --- */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: var(--font-main);
 }
 
-body {
-  background: radial-gradient(ellipse at center, #060618 0%, #000010 100%);
+html, body {
+  height: 100%;
+  width: 100%;
   overflow: hidden;
-  color: #fff;
-  touch-action: manipulation;
-  height: 100vh;
-  width: 100vw;
+  background: radial-gradient(ellipse at center, #02040a 0%, #000000 100%);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-/* Canvas fills the whole space */
-#canvas {
-  position: fixed;
+/* --- Canvas for stars --- */
+canvas {
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
@@ -37,156 +28,127 @@ body {
   z-index: 0;
 }
 
-/* UI Overlay Cluster */
-#ui {
+/* --- Planet Orbit Container --- */
+.orbit {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(70vw, 300px);
+  height: min(70vw, 300px);
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  padding: 1.5vh 1vw;
-  gap: 2vh;
-  z-index: 10;
-  width: 100%;
-}
-
-/* Player container */
-#playerContainer {
-  background: var(--panel-glass);
-  border: 1px solid var(--border-glow);
-  border-radius: 8px;
-  padding: 4px;
-  width: 95%;
-  max-width: 450px;
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
-  backdrop-filter: blur(12px);
-}
-
-#spotifyPlayer {
-  width: 100%;
-  height: 80px;
-  border: none;
-  border-radius: 6px;
-}
-
-/* Genre Cluster */
-#genreCluster {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  gap: 1vh;
-  width: 95%;
-  max-width: 450px;
-  background: var(--panel-glass);
-  padding: 8px;
-  border: 1px solid var(--border-glow);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 10px rgba(255,255,255,0.1);
-}
-
-.genre-btn {
-  flex: 1 1 30%;
-  text-align: center;
-  padding: 10px;
-  font-size: 0.9rem;
-  border: none;
-  color: #fff;
-  border-radius: 6px;
-  background: rgba(20, 20, 30, 0.4);
-  text-shadow: var(--text-glow);
-  box-shadow: 0 0 8px var(--glow), inset 0 0 6px var(--glow);
-  backdrop-filter: blur(8px);
-  transition: transform 0.2s, box-shadow 0.3s;
-}
-
-.genre-btn:active {
-  transform: scale(0.95);
-  box-shadow: 0 0 20px var(--glow);
-}
-
-/* Chart panel */
-#chartPanel {
-  width: 95%;
-  max-width: 450px;
-  background: var(--panel-glass);
-  border: 1px solid var(--border-glow);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 10px rgba(255,255,255,0.1);
-  overflow: hidden;
-}
-
-#chartPanel h3 {
-  text-align: center;
-  padding: 10px;
-  font-size: 1rem;
-  border-bottom: 1px solid var(--border-glow);
-  text-shadow: var(--text-glow);
-  letter-spacing: 1px;
-}
-
-#chartList {
-  list-style: none;
-  max-height: 35vh;
-  overflow-y: auto;
-  padding: 6px 10px;
-  scrollbar-width: none;
-}
-
-#chartList li {
-  font-size: 0.85rem;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  opacity: 0.8;
-  transition: opacity 0.3s;
-}
-
-#chartList li:hover {
-  opacity: 1;
-}
-
-/* Scrollbar hidden for aesthetic */
-#chartList::-webkit-scrollbar {
-  display: none;
-}
-
-/* Subtle ambient flicker */
-@keyframes flicker {
-  0%, 100% { opacity: 0.9; }
-  50% { opacity: 1; }
-}
-
-#ui, #chartPanel, .genre-btn {
-  animation: flicker 4s infinite ease-in-out alternate;
-}
-
-/* Orientation handling */
-@media (orientation: landscape) {
-  #ui {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-  #chartPanel {
-    max-height: 60vh;
-  }
-}
-
-/* Pixel AR effect hints */
-body::after {
-  content: "";
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: repeating-linear-gradient(
-    rgba(255,255,255,0.02) 0px,
-    rgba(255,255,255,0.02) 1px,
-    transparent 2px
-  );
-  pointer-events: none;
+  justify-content: center;
+  align-items: center;
   z-index: 2;
-  mix-blend-mode: lighten;
-  opacity: 0.3;
+}
+
+/* --- Planet Base Style --- */
+.planet {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgba(255,255,255,0.6);
+  animation: spin 16s linear infinite;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* --- Individual Genre Colors --- */
+.hard-techno { background: #ff1e1e; }      /* Red */
+.techno { background: #b800ff; }           /* Purple */
+.house { background: #ff8c00; }            /* Orange */
+.drum-bass { background: #00ff66; }        /* Green */
+.dubstep { background: #00ffff; }          /* Cyan */
+.electronic { background: #0f52ba; }       /* Sapphire */
+.pop { background: #ff4da6; }              /* Pink */
+
+/* --- Planet Glow Effects --- */
+.hard-techno::after { background: rgba(255, 80, 80, 0.6); }
+.techno::after { background: rgba(180, 0, 255, 0.6); }
+.house::after { background: rgba(255, 150, 0, 0.6); }
+.drum-bass::after { background: rgba(0, 255, 100, 0.6); }
+.dubstep::after { background: rgba(0, 255, 255, 0.6); }
+.electronic::after { background: rgba(50, 120, 255, 0.6); }
+.pop::after { background: rgba(255, 120, 190, 0.6); }
+
+.planet::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  filter: blur(16px);
+  opacity: 0.4;
+}
+
+/* --- Orbit Animation --- */
+@keyframes spin {
+  from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+}
+
+/* --- Center Glow --- */
+.glow-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(45vw, 180px);
+  height: min(45vw, 180px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(100,140,255,0.4) 0%, rgba(0,0,0,0) 80%);
+  filter: blur(40px);
+  z-index: 1;
+  animation: pulse 4s ease-in-out infinite alternate;
+}
+
+/* --- Pulse effect for central glow --- */
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.5; }
+}
+
+/* --- iOS Bottom Seamless Bar (Optional UI hint) --- */
+.bottom-bar {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3;
+}
+
+.bottom-bar p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.5px;
+}
+
+/* --- Mobile Optimizations --- */
+@media (max-width: 600px) {
+  .planet {
+    width: 18px;
+    height: 18px;
+  }
+
+  .orbit {
+    width: 220px;
+    height: 220px;
+  }
+
+  .glow-center {
+    width: 130px;
+    height: 130px;
+  }
+
+  .bottom-bar {
+    height: 70px;
+  }
 }
