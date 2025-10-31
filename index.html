@@ -2,46 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — SoundCloud System</title>
+  <title>Genre Planets — Orbital SoundCloud Player</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+  <!-- SoundCloud Widget -->
+  <script src="https://w.soundcloud.com/player/api.js"></script>
 </head>
-
 <body>
-  <!-- Full-screen 3D canvas -->
-  <canvas id="canvas"></canvas>
+  <div id="canvasWrap"></div>
+  <!-- ribbon wave (dom visual element) -->
+  <div id="ribbon" class="idle" aria-hidden="true"></div>
 
-  <!-- Ribbon overlay (animated pulse bar) -->
-  <div id="ribbon" class="idle"></div>
-
-  <!-- UI cluster: playlist + genre -->
+  <!-- Top-right UI cluster: playlist above genre chips + floating legend + top50 -->
   <div id="uiCluster">
-    <!-- Playlist (SoundCloud iframe) -->
-    <div id="playlistPanel" class="panel glass">
+    <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
-      <iframe id="soundcloudPlayer"
-        scrolling="no"
-        frameborder="no"
-        allow="autoplay"
-        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
+      <!-- SoundCloud iframe will load the selected playlist URL -->
+      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
+        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false">
       </iframe>
     </div>
 
-    <!-- Genre selection bar -->
-    <div id="genrePanel" class="panel glass">
-      <div id="genreBar">
-        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
-        <span data-genre="techno" style="color:#00ffff;">Techno</span>
-        <span data-genre="house" style="color:#ffff00;">House</span>
-        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
-        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
+    <div id="genresPanel" class="panel">
+      <div id="genreBar" role="list">
+        <!-- chips created in JS for consistent mapping; static fallbacks here -->
+        <span data-genre="techno" class="chip" style="--chip-color:#ff3333">Hard / Techno</span>
+        <span data-genre="house" class="chip" style="--chip-color:#ff8c1a">House</span>
+        <span data-genre="dnb" class="chip" style="--chip-color:#5fff85">Drum & Bass</span>
+        <span data-genre="dubstep" class="chip" style="--chip-color:#9b5fff">Dubstep</span>
+        <span data-genre="electronic" class="chip" style="--chip-color:#4f8bff">Electronic / Dance</span>
+        <span data-genre="pop" class="chip" style="--chip-color:#ff77ff">Pop / International</span>
+      </div>
+
+      <!-- floating legend area — intentionally unlabeled; sits below the chips -->
+      <div id="floatingLegend" aria-hidden="true">
+        <ul id="legendList"></ul>
       </div>
     </div>
+
+    <div id="top50Panel" class="panel">
+      <h4>Top 50 (by selected genre)</h4>
+      <div id="topList" class="scroller"></div>
+    </div>
   </div>
+
+  <!-- bottom-right map & analytics -->
+  <div id="mapCluster" class="panel small">
+    <h4>Country Votes</h4>
+    <div id="worldMap" title="Country vote map" aria-hidden="false"></div>
+  </div>
+
+  <!-- Vote modal placeholder appended by JS -->
+  <div id="modalRoot"></div>
+
+  <!-- Hidden / helper elements used by app.js -->
+  <select id="genreSelect" style="display:none"></select>
 
   <script src="app.js"></script>
 </body>
