@@ -3,36 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Genre Orbits</title>
+  <title>Starry Orbs</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <canvas id="orbitCanvas"></canvas>
-
-  <div class="ui-container">
-    <div class="genre-bar">
-      <div class="genre" data-genre="hard-techno" style="--color: #ff0000;">Hard Techno</div>
-      <div class="genre" data-genre="techno" style="--color: #800080;">Techno</div>
-      <div class="genre" data-genre="house" style="--color: #ffa500;">House</div>
-      <div class="genre" data-genre="dnb" style="--color: #00ff00;">Drum & Bass</div>
-      <div class="genre" data-genre="dubstep" style="--color: #00ffff;">Dubstep</div>
-      <div class="genre" data-genre="electronic" style="--color: #0f52ba;">Electronic/Dance</div>
-      <div class="genre" data-genre="pop" style="--color: #ff66aa;">Pop/International</div>
-    </div>
-
-    <div class="playlist-box">
-      <h3>Now Playing</h3>
-      <div class="playlist-placeholder">[Playlist will appear here]</div>
+  <div class="background">
+    <canvas id="stars"></canvas>
+    <div class="orbs">
+      <div class="orb orb1"></div>
+      <div class="orb orb2"></div>
+      <div class="orb orb3"></div>
     </div>
   </div>
 
-  <nav class="bottom-nav">
-    <button class="nav-btn">Home</button>
-    <button class="nav-btn">Top 50</button>
-    <button class="nav-btn">Map</button>
-    <button class="nav-btn">Profile</button>
+  <nav class="navbar">
+    <ul>
+      <li><a href="#">Home</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Projects</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
   </nav>
 
-  <script src="app.js"></script>
+  <script>
+    // --- Star twinkle animation ---
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    let stars = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function initStars() {
+      stars = [];
+      for (let i = 0; i < 200; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.5,
+          alpha: Math.random(),
+          fade: Math.random() * 0.02 + 0.005
+        });
+      }
+    }
+
+    function drawStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      for (let s of stars) {
+        ctx.globalAlpha = s.alpha;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+        s.alpha += s.fade;
+        if (s.alpha <= 0 || s.alpha >= 1) s.fade = -s.fade;
+      }
+      requestAnimationFrame(drawStars);
+    }
+
+    initStars();
+    drawStars();
+  </script>
 </body>
 </html>
