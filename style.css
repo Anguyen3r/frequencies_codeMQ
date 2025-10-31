@@ -1,145 +1,88 @@
-/* Layout and background */
 html, body {
-  height: 100%;
   margin: 0;
-  font-family: 'Inter', system-ui, Arial;
-  background: radial-gradient(ellipse at center, #000010 0%, #000005 100%);
-  color: #fff;
+  padding: 0;
   overflow: hidden;
+  background: radial-gradient(circle at center, #0b0d13, #000);
+  font-family: 'Inter', sans-serif;
+  color: #fff;
 }
 
-/* 3D canvas */
-canvas {
+#canvasWrap {
   position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: transparent;
-}
-
-/* Horizontal ribbon synced with waveform */
-#ribbon {
-  position: fixed;
-  top: 50%;
+  top: 0;
   left: 0;
   width: 100%;
-  height: 3px;
-  transform: translateY(-50%);
-  background: linear-gradient(90deg,
-    rgba(0,255,255,0.25),
-    rgba(255,0,255,0.4),
-    rgba(255,255,0,0.3),
-    rgba(0,255,255,0.25)
-  );
-  background-size: 400% 100%;
-  filter: blur(4px) brightness(1.3);
-  transition: background 0.8s ease;
-  opacity: 0.8;
-  z-index: 2;
-  pointer-events: none;
+  height: 100%;
 }
 
-/* Subtle idle animation when not playing */
-@keyframes idleFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-#ribbon.idle {
-  animation: idleFlow 12s ease-in-out infinite;
-}
-
-/* Glassy floating UI cluster (top right) */
-#uiCluster {
-  position: fixed;
-  top: 20px;
-  right: 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 30;
-}
-
-/* Panels unified aesthetic */
-.panel {
-  background: rgba(20, 20, 30, 0.55);
-  backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px 18px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.45);
-  transition: border 0.3s ease, box-shadow 0.3s ease;
-}
-.panel:hover {
-  border: 1px solid rgba(255,255,255,0.16);
-  box-shadow: 0 0 28px rgba(255,255,255,0.08);
-}
-
-/* Glow edge shimmer */
-.panel::before {
-  content: "";
+#ui {
   position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(120deg,
-    rgba(0,255,255,0.4),
-    rgba(255,0,255,0.4),
-    rgba(255,255,0,0.3),
-    rgba(0,255,255,0.4));
-  background-size: 400% 400%;
-  animation: shimmer 18s linear infinite;
-  opacity: 0.4;
-  z-index: -1;
-}
-@keyframes shimmer {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  top: 10px;
+  left: 10px;
+  z-index: 10;
 }
 
-/* Playlist container */
-#playlistPanel {
-  font-family: 'Inter', monospace;
+button {
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-}
-#playlistPanel h3 {
-  margin-top: 0;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 8px;
   font-size: 14px;
-  opacity: 0.9;
-}
-#playlistPanel iframe {
-  border-radius: 10px;
-  width: 260px;
-  height: 160px;
-  border: none;
+  transition: background 0.2s ease;
 }
 
-/* Genre bar (color tinted to stardust ring) */
-#genreBar {
+button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.panel {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 12px;
+  width: 250px;
+  transition: opacity 0.3s ease;
+}
+
+.hidden {
+  display: none;
+}
+
+#legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+  background: rgba(0,0,0,0.5);
+  padding: 10px 15px;
+  border-radius: 12px;
+}
+
+#legend h4 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+#legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#legend li {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-#genreBar span {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75em;
-  letter-spacing: 0.4px;
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  transition: all 0.3s ease;
-}
-#genreBar span.active {
-  background: rgba(255,255,255,0.18);
-  box-shadow: 0 0 10px currentColor;
-  transform: scale(1.05);
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 13px;
 }
 
-/* Mobile */
-@media (max-width: 760px) {
-  #playlistPanel iframe {
-    width: 80vw;
-  }
-  #genreBar span {
-    font-size: 0.7em;
-  }
+#legend span.color {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 1px solid #fff;
 }
