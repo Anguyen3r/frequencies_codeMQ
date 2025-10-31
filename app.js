@@ -705,39 +705,10 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-/* ---------- Intro fade + one-time autoplay (overlay uses #fade-overlay from index.html) ---------- */
-const INTRO_TRACK = 'https://soundcloud.com/user-200235414/wave-1'; // your intro track (page URL; browsers may require a playable stream)
-let introPlayedOnce = false;
-
-window.addEventListener("load", async () => {
-  // Fade overlay element present in index.html: #fade-overlay
-  const overlay = document.getElementById('fade-overlay');
-  // Try to play intro track via audioController. Note: SoundCloud page URLs often won't play directly via <audio>.
-  // If the URL is not a direct audio file, playback may fail; the fallback is to wait for interaction.
-  try {
-    // Load intro (no loop)
-    await audioController.loadUrl(INTRO_TRACK, { loop: false });
-    introPlayedOnce = true;
-  } catch(e){
-    console.warn('Intro load attempt failed (may require valid audio stream).', e);
-  }
-
-  // start fade immediately and remove after 2s (user wanted 2 seconds)
-  if (overlay){
-    overlay.style.transition = 'opacity 2s ease';
-    // slight delay to ensure audio start attempt runs
-    setTimeout(()=> {
-      overlay.style.opacity = '0';
-      setTimeout(()=> { try{ overlay.remove(); }catch(e){} }, 2100);
-    }, 0);
-  }
-
-  // reveal UI slightly after fade begins (so ribbon & wave visible first)
-  setTimeout(()=> {
-    uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-    legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
-  }, 900);
-});
+/* ---------- (FADE REMOVED) ----------
+   The fade/overlay logic referencing #fade-overlay was intentionally removed here.
+   All other intro/autoplay/audio/ribbon/etc logic remains unchanged.
+*/
 
 /* ---------- Sanity log ---------- */
 console.log('app.js loaded — ribbon and audio-reactive features enabled.');
