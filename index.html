@@ -1,32 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Orbiting Orbs — Stardust</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="scene">
-    <!-- Stars far back -->
-    <canvas id="stars"></canvas>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <title>Orbital Sound Interface</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+  </head>
 
-    <!-- Nebula ribbons in middle -->
-    <canvas id="nebula"></canvas>
+  <body>
+    <div id="root"></div>
 
-    <!-- Orbs + trails on top of nebula -->
-    <canvas id="orbs"></canvas>
-  </div>
+    <!-- Optional loading fallback -->
+    <noscript>You need to enable JavaScript to run this app.</noscript>
 
-  <nav class="navbar">
-    <ul>
-      <li><a href="#">Home</a></li>
-      <li><a href="#">About</a></li>
-      <li><a href="#">Projects</a></li>
-      <li><a class="active" href="#">Contact</a></li>
-    </ul>
-  </nav>
+    <!-- React & App -->
+    <script type="module" src="/App.js"></script>
 
-  <script src="app.js"></script>
-</body>
+    <!-- Optional background animation scripts -->
+    <script src="script.js"></script>
+  </body>
 </html>
