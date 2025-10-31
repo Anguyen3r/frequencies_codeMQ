@@ -2,23 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <meta name="theme-color" content="#000000" />
     <title>Orbital Sound Interface</title>
-    <link rel="stylesheet" href="style.css" />
+
+    <!-- Favicon (optional) -->
     <link rel="icon" type="image/png" href="favicon.png" />
+
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
-    <div id="root"></div>
+    <!-- Background container -->
+    <div id="space-background"></div>
+
+    <!-- Orbiting planets & vertical wave -->
+    <canvas id="spaceCanvas"></canvas>
+
+    <!-- Bottom translucent nav bar -->
+    <nav class="bottom-nav">
+      <div class="nav-item">Genres</div>
+      <div class="nav-item">Top 50</div>
+      <div class="nav-item">Map</div>
+      <div class="nav-item">Vote</div>
+    </nav>
 
     <!-- Optional loading fallback -->
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
 
-    <!-- React & App -->
-    <script type="module" src="/App.js"></script>
+    <!-- App Logic -->
+    <script type="module" src="./app.js"></script>
 
-    <!-- Optional background animation scripts -->
-    <script src="script.js"></script>
+    <!-- Optional background animation -->
+    <script src="./script.js"></script>
   </body>
 </html>
