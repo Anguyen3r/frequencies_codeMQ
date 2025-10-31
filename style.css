@@ -1,125 +1,116 @@
-* {
+html, body {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  height: 100vh;
-  background: radial-gradient(ellipse at center, #02010a 0%, #000 100%);
+  height: 100%;
   overflow: hidden;
-  position: relative;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', sans-serif;
+  background: black;
   color: white;
 }
 
-/* Starfield */
-.starfield {
-  position: absolute;
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
   z-index: 0;
 }
 
-.star {
+/* UI container overlay */
+.ui-container {
   position: absolute;
-  width: 2px;
-  height: 2px;
-  background: white;
-  border-radius: 50%;
-  opacity: 0.6;
-  animation: twinkle 3s infinite ease-in-out;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 1; }
-}
-
-/* Brighter center glow */
-.center-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 250px;
-  height: 400px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle at center, rgba(255,255,255,0.2), transparent 70%);
-  filter: blur(60px);
-  z-index: 1;
-}
-
-/* Orbiting Planets */
-.orbit-container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100vw;
-  height: 100vh;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+  top: 1rem;
+  left: 0;
+  width: 100%;
+  text-align: center;
   z-index: 2;
 }
 
-.planet {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  transform-origin: center;
-  animation: orbit 14s linear infinite;
-  box-shadow: 0 0 20px 5px currentColor;
+/* Genre bar */
+.genre-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
 }
 
-@keyframes orbit {
-  from { transform: rotate(0deg) translateY(-120px) rotate(0deg); }
-  to { transform: rotate(360deg) translateY(-120px) rotate(-360deg); }
+.genre {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: var(--color);
+  backdrop-filter: blur(10px);
+  transition: background 0.3s;
 }
 
-/* Genre Colors */
-.hard-techno { color: #ff3131; animation-duration: 11s; }
-.techno { color: #a020f0; animation-duration: 13s; }
-.house { color: #ff8c00; animation-duration: 15s; }
-.dnb { color: #00ff7f; animation-duration: 17s; }
-.dubstep { color: #00ffff; animation-duration: 19s; }
-.electronic { color: #0f52ba; animation-duration: 21s; } /* sapphire */
-.pop { color: #ff66cc; animation-duration: 23s; }
+.genre:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
 
-/* Glassy Bottom Nav */
+/* Playlist box */
+.playlist-box {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  width: 90%;
+  margin: 1rem auto;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.playlist-box h3 {
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.playlist-placeholder {
+  height: 120px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+/* Bottom nav */
 .bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 0;
   width: 100%;
-  height: 70px;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(10px);
   display: flex;
   justify-content: space-around;
   align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 10;
+  padding: 0.5rem 0;
+  z-index: 3;
 }
 
-.nav-item {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.8;
-  transition: opacity 0.3s;
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.3s;
 }
 
-.nav-item:hover {
-  opacity: 1;
+.nav-btn:hover {
+  color: #0ff;
 }
 
-/* Mobile responsiveness */
+/* Responsive */
 @media (orientation: landscape) {
-  .center-glow {
-    width: 400px;
-    height: 250px;
+  .genre-bar {
+    gap: 1rem;
+  }
+  .playlist-box {
+    width: 70%;
   }
 }
