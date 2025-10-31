@@ -134,17 +134,6 @@ canvas {
   transform: scale(1.05);
 }
 
-/* Fade overlay */
-#fadeOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 999;
-  opacity: 1;
-  transition: opacity 1.5s ease;
-  pointer-events: none;
-}
-
 /* Mobile */
 @media (max-width: 760px) {
   #playlistPanel iframe {
