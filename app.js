@@ -1,140 +1,182 @@
-// === Dream Bubbles — Main App.js ===
+// app.js — Finalized version
 
-// Scene setup
+// === Scene Setup ===
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-camera.position.set(0, 0, 150);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+camera.position.set(0, 0, 220);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
 document.getElementById("canvasWrap").appendChild(renderer.domElement);
 
-// === Fade overlay control ===
-const fadeOverlay = document.getElementById("fade-overlay");
-setTimeout(() => {
-  fadeOverlay.style.opacity = 0.6; // permanent soft black tint
-}, 500);
+// === Lighting ===
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+const point = new THREE.PointLight(0xffffff, 1.4);
+point.position.set(50, 50, 80);
+scene.add(ambient, point);
 
-// === Genre colors ===
-const genreColors = {
-  pop: 0xff7fcf,
-  edm: 0x00ffff,
-  hiphop: 0xffd700,
-  indie: 0xadff2f,
-  classical: 0xaaaaff,
-  rock: 0xff6347,
-  jazz: 0x8a2be2,
-  experimental: 0xff69b4,
+// === Global Parameters ===
+let bubbles = [];
+let stardusts = [];
+let currentGenre = "pop";
+let genreColors = {
+  pop: 0xff66cc,
+  techno: 0x00ffff,
+  house: 0xff9900,
+  trance: 0x9966ff,
+  classical: 0xffffff,
+  hiphop: 0xff4444,
+  ambient: 0x66ffcc
 };
 
-let currentGenre = 'pop';
-let currentGenreColor = genreColors[currentGenre];
-
-// === Light setup ===
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-scene.add(ambientLight);
-const pointLight = new THREE.PointLight(0xffffff, 2);
-pointLight.position.set(0, 100, 200);
-scene.add(pointLight);
-
-// === Energy ribbon ===
-const ribbonLength = 400;
-const ribbonPoints = [];
-for (let i = 0; i < 100; i++) ribbonPoints.push(new THREE.Vector3(i * 4 - ribbonLength / 2, Math.sin(i * 0.3) * 10, 0));
-
-const ribbonGeometry = new THREE.BufferGeometry().setFromPoints(ribbonPoints);
-const ribbonMaterial = new THREE.LineBasicMaterial({
-  color: currentGenreColor,
-  linewidth: 2,
-  transparent: true,
-  opacity: 0.9,
+// === Ribbon Setup ===
+const ribbonGeometry = new THREE.PlaneGeometry(400, 3, 40, 1);
+const ribbonMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    time: { value: 0 },
+    color: { value: new THREE.Color(genreColors[currentGenre]) }
+  },
+  vertexShader: `
+    uniform float time;
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      vec3 pos = position;
+      pos.y += sin(pos.x * 0.05 + time * 2.0) * 1.2;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 color;
+    varying vec2 vUv;
+    void main() {
+      float alpha = 0.8 - abs(vUv.y - 0.5) * 1.6;
+      gl_FragColor = vec4(color, alpha);
+    }
+  `,
+  transparent: true
 });
-const ribbon = new THREE.Line(ribbonGeometry, ribbonMaterial);
+const ribbon = new THREE.Mesh(ribbonGeometry, ribbonMaterial);
+ribbon.rotation.x = -Math.PI / 2;
+ribbon.position.z = -40;
 scene.add(ribbon);
 
-// === Bubble creation ===
-const bubbles = [];
-const bubbleGroup = new THREE.Group();
-scene.add(bubbleGroup);
+// === Bubble Creation ===
+function createBubbles(count = 15) {
+  const geo = new THREE.SphereGeometry(4, 32, 32);
+  for (let i = 0; i < count; i++) {
+    const col = new THREE.Color(genreColors[currentGenre]);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: col,
+      emissive: col.clone().multiplyScalar(0.2),
+      roughness: 0.3,
+      metalness: 0.7,
+      transparent: true,
+      opacity: 0.8,
+      transmission: 0.6,
+      thickness: 0.8
+    });
+    const bubble = new THREE.Mesh(geo, mat);
+    bubble.userData = {
+      angle: Math.random() * Math.PI * 2,
+      radius: 60 + Math.random() * 70,
+      speed: 0.001 + Math.random() * 0.0015,
+      offset: Math.random() * 50
+    };
+    scene.add(bubble);
+    bubbles.push(bubble);
 
-const genres = Object.keys(genreColors);
-for (let i = 0; i < 15; i++) {
-  const genre = genres[i % genres.length];
-  const color = genreColors[genre];
-  const size = Math.random() * 4 + 3;
-  const geo = new THREE.SphereGeometry(size, 32, 32);
-  const mat = new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: 0.3,
-    transparent: true,
-    opacity: 0.85,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(
-    Math.random() * 200 - 100,
-    Math.random() * 100 - 50,
-    Math.random() * 100 - 50
-  );
-  mesh.userData = { genre, speed: 0.001 + Math.random() * 0.002, direction: Math.random() > 0.5 ? 1 : -1 };
-  bubbleGroup.add(mesh);
-  bubbles.push(mesh);
-}
-
-// === Ribbon animation (energy wave) ===
-let waveOffset = 0;
-function updateRibbon() {
-  const positions = ribbonGeometry.attributes.position.array;
-  for (let i = 0; i < positions.length; i += 3) {
-    const x = positions[i];
-    positions[i + 1] = Math.sin(x * 0.05 + waveOffset) * 10;
+    // Stardust ring around bubble
+    const ringGeo = new THREE.RingGeometry(5.5, 5.8, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: col,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    bubble.add(ring);
+    stardusts.push(ring);
   }
-  ribbonGeometry.attributes.position.needsUpdate = true;
-  waveOffset += 0.04;
 }
+createBubbles();
 
-// === Bubble movement ===
-function updateBubbles() {
-  bubbles.forEach((bubble, i) => {
-    const t = Date.now() * bubble.userData.speed * bubble.userData.direction;
-    const radius = 60 + Math.sin(i + t * 0.002) * 10;
-    bubble.position.x = Math.cos(t) * radius;
-    bubble.position.y = Math.sin(t * 1.1) * 20;
-    bubble.position.z = Math.sin(t * 0.8) * 40 + Math.cos(t * 0.5) * 10;
+// === SoundCloud Playlist Embed ===
+document.getElementById("loadSpotify").addEventListener("click", () => {
+  const url = document.getElementById("spotifyInput").value.trim();
+  if (!url) return;
 
-    // Z-forward slow drift
-    bubble.position.z += 0.02 * bubble.userData.direction;
+  const embedHTML = `
+    <iframe width="100%" height="120" scrolling="no" frameborder="no" allow="autoplay"
+      src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23${new THREE.Color(genreColors[currentGenre]).getHexString()}&inverse=false&auto_play=false&show_user=true">
+    </iframe>
+  `;
+  document.getElementById("spotifyEmbed").innerHTML = embedHTML;
+});
 
-    // Reactive shimmer tint (will link to audio later)
-    const intensity = 0.3 + 0.2 * Math.sin(t * 2.5);
-    bubble.material.emissiveIntensity = intensity;
-  });
-}
-
-// === UI tint system (ready for audio integration) ===
-function updateUITint() {
-  const ui = document.getElementById("ui");
-  const playlist = document.getElementById("playlistPanel");
-  const color = new THREE.Color(currentGenreColor);
-  const tint = `rgba(${color.r * 255}, ${color.g * 255}, ${color.b * 255}, 0.2)`;
-  ui.style.background = `linear-gradient(145deg, ${tint}, transparent)`;
-  playlist.style.borderColor = tint;
-}
-updateUITint();
-
-// === Animation loop ===
-function animate() {
+// === Animation Loop ===
+function animate(time) {
   requestAnimationFrame(animate);
-  updateRibbon();
-  updateBubbles();
+  const t = time * 0.001;
+  ribbonMaterial.uniforms.time.value = t;
+
+  // Move bubbles in forward orbit
+  bubbles.forEach((b, i) => {
+    const data = b.userData;
+    data.angle += data.speed;
+    const zForward = -Math.sin(t * 0.1 + data.offset) * 40;
+    b.position.set(
+      Math.cos(data.angle) * data.radius,
+      Math.sin(data.angle * 1.3) * 20,
+      zForward + Math.sin(t * 0.3 + i) * 10
+    );
+  });
+
   renderer.render(scene, camera);
 }
 animate();
 
-// === Responsive resize ===
-window.addEventListener('resize', () => {
+// === Genre Tint Change ===
+function setGenre(genre) {
+  if (!genreColors[genre]) return;
+  currentGenre = genre;
+  const color = new THREE.Color(genreColors[genre]);
+  ribbonMaterial.uniforms.color.value.copy(color);
+
+  bubbles.forEach((b, i) => {
+    const c = color.clone().offsetHSL(0, 0, Math.sin(i) * 0.05);
+    b.material.color.copy(c);
+    b.material.emissive.copy(c.clone().multiplyScalar(0.2));
+    if (stardusts[i]) stardusts[i].material.color.copy(c);
+  });
+
+  document.querySelectorAll("#legend span").forEach((span) => {
+    if (span.dataset.genre === genre)
+      span.style.background = color.getStyle();
+    else span.style.background = "rgba(255,255,255,0.08)";
+  });
+}
+
+// === Window Resize ===
+window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// === Initialize UI Legends ===
+const legendList = document.getElementById("legendList");
+Object.keys(genreColors).forEach((g) => {
+  const span = document.createElement("span");
+  span.dataset.genre = g;
+  span.textContent = g.charAt(0).toUpperCase() + g.slice(1);
+  span.style.background = new THREE.Color(genreColors[g]).getStyle();
+  span.addEventListener("click", () => setGenre(g));
+  legendList.appendChild(span);
+});
+
+// Fade overlay (static)
+window.addEventListener("load", () => {
+  const overlay = document.getElementById("fadeOverlay");
+  if (overlay) overlay.style.opacity = "0.95"; // permanent black tint
 });
