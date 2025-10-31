@@ -705,12 +705,5 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-  // reveal UI slightly after fade begins (so ribbon & wave visible first)
-  setTimeout(()=> {
-    uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-    legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
-  }, 900);
-});
-
 /* ---------- Sanity log ---------- */
 console.log('app.js loaded — ribbon and audio-reactive features enabled.');
