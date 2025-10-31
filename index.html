@@ -1,82 +1,48 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Dream Bubbles — Music Atlas</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Three.js & Orbit Controls -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reborning Sound Atlas</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- 3D Scene -->
-  <canvas id="canvas"></canvas>
+  <div id="app">
+    <header class="header">
+      <h1 class="title">Reborning Sound Atlas</h1>
+      <p class="subtitle">Explore Genres • Artists • Worlds</p>
+    </header>
 
-  <!-- UI Cluster (Top-Right) -->
-  <div id="uiCluster">
-
-    <!-- Playlist Panel -->
-    <div id="playlistPanel" class="panel">
-      <h3>Now Playing</h3>
-      <iframe
-        id="spotifyPlayer"
-        src="https://open.spotify.com/embed/playlist/3he7OajxdzoUoNzD44SVg3"
-        width="100%"
-        height="152"
-        frameborder="0"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy">
-      </iframe>
-    </div>
-
-    <!-- Genre Bar -->
-    <div id="genrePanel" class="panel">
-      <div id="genreBar">
-        <div class="genre" style="--color:#ff0000;">Hard Techno</div>
-        <div class="genre" style="--color:#cc0000;">Techno</div>
-        <div class="genre" style="--color:#ffa500;">House</div>
-        <div class="genre" style="--color:#00ff00;">Drum &amp; Bass</div>
-        <div class="genre" style="--color:#8000ff;">Dubstep</div>
-        <div class="genre" style="--color:#0000ff;">Electronic / Dance</div>
-        <div class="genre" style="--color:#ff66aa;">Pop / International</div>
+    <main class="main-container">
+      <!-- Genre Toggle and Label -->
+      <div class="genre-toggle">
+        <div class="genre-label">Select Genre</div>
+        <select id="genreSelect" class="genre-dropdown">
+          <option value="techno">Techno</option>
+          <option value="hardtechno">Hard Techno</option>
+          <option value="trance">Trance</option>
+          <option value="house">House</option>
+          <option value="drumandbass">Drum & Bass</option>
+          <option value="breakbeat">Breakbeat</option>
+          <option value="ambient">Ambient</option>
+        </select>
       </div>
-    </div>
 
-    <!-- Top 50 Chart -->
-    <div id="chartPanel" class="panel">
-      <h3>Top 50 Artists</h3>
-      <div id="chartList">
-        <ul>
-          <li>Charlotte de Witte</li>
-          <li>Amelie Lens</li>
-          <li>Adam Beyer</li>
-          <li>Reinier Zonneveld</li>
-          <li>ANNA</li>
-          <li>Enrico Sangiuliano</li>
-          <li>Boris Brejcha</li>
-          <li>Peggy Gou</li>
-          <li>John Summit</li>
-          <li>Dom Dolla</li>
-          <li>Sub Focus</li>
-          <li>Dimension</li>
-          <li>Excision</li>
-          <li>Virtual Riot</li>
-          <li>David Guetta</li>
-          <li>Calvin Harris</li>
-          <li>Martin Garrix</li>
-          <li>Fred again..</li>
-          <li>Skrillex</li>
-          <li>Armin van Buuren</li>
-          <!-- Extend this list freely -->
-        </ul>
+      <!-- Planet Visualization -->
+      <div id="planetContainer" class="planet-container"></div>
+
+      <!-- Top 50 Artist List -->
+      <div class="top50-container">
+        <h2>Top 50 Artists</h2>
+        <ul id="top50List" class="top50-list"></ul>
       </div>
-    </div>
+    </main>
 
+    <footer class="footer">
+      <p>© 2025 Reborning — Built for Music Lovers</p>
+    </footer>
   </div>
 
-  <!-- App Logic -->
   <script src="app.js"></script>
 </body>
 </html>
