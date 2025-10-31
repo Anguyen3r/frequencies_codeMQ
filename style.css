@@ -8,41 +8,16 @@ html, body {
   overflow: hidden;
 }
 
-/* Canvas wrap for bubbles / smoke */
-#canvasWrap {
+/* Canvas for the 3D scene */
+canvas {
   position: fixed;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
+  background: transparent;
 }
 
-/* UI */
-#ui {
-  position: fixed;
-  left: 12px;
-  top: 12px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Top toggle button */
-#toggleTop {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #fff;
-  padding: 8px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-#toggleTop:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Shared glass aurora panels */
-.panel, #legend {
+/* Aurora glass UI */
+.panel, #playlist {
   position: relative;
   background: rgba(10, 12, 20, 0.5);
   backdrop-filter: blur(10px) saturate(140%);
@@ -52,8 +27,8 @@ html, body {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
 }
 
-/* Aurora shimmer border */
-.panel::before, #legend::before {
+/* Shimmer edge */
+.panel::before, #playlist::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -79,132 +54,72 @@ html, body {
   100% { background-position: 0% 50%; }
 }
 
-/* Panel content */
-.panel {
-  padding: 12px;
-  width: 320px;
-  max-height: 70vh;
-  overflow: auto;
-}
-.hidden { display: none; }
-
-#genreSelect {
-  width: 100%;
-  padding: 6px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-#genreSelect:focus { outline: 1px solid rgba(255,255,255,0.2); }
-
-#topList {
-  font-size: 13px;
-}
-#topList .row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-#topList .row strong { color: #fff; }
-#topList .score { opacity: 0.75; }
-
-/* Playlist panel */
-#playlistPanel {
+/* Playlist box (top right) */
+#playlist {
   position: fixed;
-  right: 12px;
-  top: 12px;
-  width: 300px;
-  z-index: 10;
+  top: 20px;
+  right: 30px;
+  padding: 12px 20px;
+  color: #fff;
+  font-family: monospace;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 1.5s ease;
 }
 
-#spotifyInput {
-  width: 100%;
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
+#playlist h3 {
+  margin-top: 0;
   margin-bottom: 6px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+#playlist p {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* Genre legend (pokemon-type style under playlist) */
+#legend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  opacity: 0.9;
+}
+#legend span {
+  padding: 4px 8px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+  font-size: 0.85em;
+  font-weight: 500;
+  user-select: none;
+  transition: background 0.3s ease, transform 0.3s ease;
 }
-#loadSpotify {
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-  background: linear-gradient(120deg, #1db954, #0c8538);
-  color: #fff;
-  cursor: pointer;
-  transition: filter 0.3s ease;
-}
-#loadSpotify:hover { filter: brightness(1.2); }
-
-#spotifyEmbed iframe {
-  width: 100%;
-  height: 80px;
-  border-radius: 6px;
-  border: none;
-  margin-top: 8px;
+#legend span:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.05);
 }
 
-/* Legend area */
-#legend {
-  position: fixed;
-  right: 12px;
-  bottom: 12px;
-  background: rgba(10, 12, 20, 0.55);
-  padding: 10px;
-  border-radius: 12px;
-  z-index: 10;
-}
-
-#legendList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#legendList li {
-  padding: 6px 10px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
-  font-size: 13px;
-  color: #fff;
-  transition: background 0.3s ease;
-}
-#legendList li:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Fade shimmer on hover */
-.panel:hover::before,
-#legend:hover::before {
-  animation-play-state: paused;
-}
-/* Small responsiveness */
-@media (max-width: 760px) {
-  .panel { width: 85vw; }
-  #playlistPanel { width: 85vw; right: 8px; }
-}
+/* Fade overlay for intro */
 #fadeOverlay {
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(10, 10, 20, 0.9), rgba(0, 0, 0, 1));
+  background: rgba(0, 0, 0, 0.8);
   z-index: 9999;
   opacity: 1;
+  transition: opacity 1.5s ease;
   pointer-events: none;
 }
-/* Fade overlay */
-#fade-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 9999;
-  opacity: 1;
-  transition: opacity 2s ease;
-  pointer-events: none;
+
+/* Responsive scaling */
+@media (max-width: 760px) {
+  #playlist {
+    width: 85vw;
+    right: 8px;
+  }
+  #legend span {
+    font-size: 0.75em;
+  }
 }
