@@ -1,62 +1,133 @@
-/* Reset */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ==== Global Reset ==== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-html, body {
-  height: 100%;
+html,
+body {
   width: 100%;
-  background: #000;
-  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  height: 100%;
+  background: radial-gradient(circle at 50% 30%, #0a0a0f, #000);
+  overflow: hidden;
   color: #fff;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+  font-family: "Inter", sans-serif;
 }
 
+/* ==== Main Scene ==== */
 .scene {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
 }
 
-/* Canvas stacking order (lower z = further back) */
-#stars { position: absolute; inset: 0; z-index: 0; }
-#nebula { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-#orbs { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* ==== Background Stars ==== */
+.stars {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background: transparent;
+  background-image: radial-gradient(white 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: twinkle 8s infinite ease-in-out alternate;
+  opacity: 0.6;
+  transform: translate(-25%, -25%);
+}
 
-/* Navbar - transparent black glass style at bottom */
-.navbar {
-  position: fixed;
-  bottom: 20px;
+@keyframes twinkle {
+  from { opacity: 0.4; }
+  to { opacity: 0.9; }
+}
+
+/* ==== Ribbon Nebula (vertical space gas wave) ==== */
+.ribbon {
+  position: absolute;
+  top: 0;
   left: 50%;
+  width: 10px;
+  height: 100%;
   transform: translateX(-50%);
-  z-index: 10;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(10px) saturate(1.1);
-  border-radius: 28px;
-  padding: 10px 28px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  background: linear-gradient(180deg, rgba(180, 100, 255, 0.25), rgba(255, 255, 255, 0.05), rgba(120, 200, 255, 0.25));
+  filter: blur(40px);
+  opacity: 0.8;
 }
 
-.navbar ul {
+/* ==== Orbiting Orbs ==== */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 0 20px currentColor;
+  animation: orbit 20s linear infinite;
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--radius)) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
+}
+
+/* ==== Orb Colors ==== */
+.orb.hard-techno { color: #ff4040; }       /* Red */
+.orb.techno { color: #a020f0; }            /* Purple */
+.orb.house { color: #ff8c00; }             /* Orange */
+.orb.dnb { color: #00ff66; }               /* Green */
+.orb.dubstep { color: #00ffff; }           /* Cyan */
+.orb.electronic { color: #0f52ba; }        /* Sapphire Blue */
+.orb.pop { color: #ff66cc; }               /* Pink */
+
+/* ==== Comet Streaks ==== */
+.comet {
+  position: absolute;
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0.7;
+  border-radius: 50%;
+  filter: blur(2px);
+  transform-origin: left;
+  animation: comet-move 6s linear infinite;
+}
+
+@keyframes comet-move {
+  0% {
+    transform: translate(-200px, -50px) rotate(15deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(800px, 600px) rotate(15deg);
+    opacity: 0;
+  }
+}
+
+/* ==== Glass Navbar ==== */
+.navbar {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 70px;
+  backdrop-filter: blur(20px);
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
-  gap: 30px;
-  list-style: none;
   align-items: center;
+  justify-content: space-around;
+  color: #ffffffaa;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
 }
 
-.navbar a {
-  text-decoration: none;
-  color: #e9e9e9;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-  transition: color 180ms ease;
-}
-
-.navbar a:hover { color: #7be6e6; }
-.navbar a.active { color: #12c2d6; }
-
-/* Make sure content doesn't overlap OS chrome on mobile */
-@media (max-width: 420px) {
-  .navbar { bottom: 12px; padding: 8px 18px; gap: 12px; }
-  .navbar ul { gap: 18px; font-size: 16px; }
+/* ==== Responsive (Mobile Focused) ==== */
+@media (max-width: 768px) {
+  .navbar {
+    height: 60px;
+    font-size: 0.8rem;
+  }
+  .orb {
+    width: 16px;
+    height: 16px;
+  }
 }
