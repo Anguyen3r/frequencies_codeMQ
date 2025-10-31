@@ -1,43 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Celestial Sound</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genre Orbits</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="starfield"></div>
-  <div class="center-glow"></div>
+  <canvas id="orbitCanvas"></canvas>
 
-  <div class="orbit-container">
-    <div class="planet hard-techno"></div>
-    <div class="planet techno"></div>
-    <div class="planet house"></div>
-    <div class="planet dnb"></div>
-    <div class="planet dubstep"></div>
-    <div class="planet electronic"></div>
-    <div class="planet pop"></div>
+  <div class="ui-container">
+    <div class="genre-bar">
+      <div class="genre" data-genre="hard-techno" style="--color: #ff0000;">Hard Techno</div>
+      <div class="genre" data-genre="techno" style="--color: #800080;">Techno</div>
+      <div class="genre" data-genre="house" style="--color: #ffa500;">House</div>
+      <div class="genre" data-genre="dnb" style="--color: #00ff00;">Drum & Bass</div>
+      <div class="genre" data-genre="dubstep" style="--color: #00ffff;">Dubstep</div>
+      <div class="genre" data-genre="electronic" style="--color: #0f52ba;">Electronic/Dance</div>
+      <div class="genre" data-genre="pop" style="--color: #ff66aa;">Pop/International</div>
+    </div>
+
+    <div class="playlist-box">
+      <h3>Now Playing</h3>
+      <div class="playlist-placeholder">[Playlist will appear here]</div>
+    </div>
   </div>
 
   <nav class="bottom-nav">
-    <div class="nav-item">Home</div>
-    <div class="nav-item">Genres</div>
-    <div class="nav-item">Top 50</div>
-    <div class="nav-item">Map</div>
+    <button class="nav-btn">Home</button>
+    <button class="nav-btn">Top 50</button>
+    <button class="nav-btn">Map</button>
+    <button class="nav-btn">Profile</button>
   </nav>
 
-  <script>
-    // Add twinkle animation for stars dynamically
-    const starfield = document.querySelector('.starfield');
-    for (let i = 0; i < 250; i++) {
-      const star = document.createElement('div');
-      star.className = 'star';
-      star.style.top = `${Math.random() * 100}%`;
-      star.style.left = `${Math.random() * 100}%`;
-      star.style.animationDelay = `${Math.random() * 5}s`;
-      starfield.appendChild(star);
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
