@@ -1,142 +1,35 @@
-/* ==== Global Reset ==== */
+/* Base reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 50% 30%, #0a0a0f, #000);
+/* Background & layout */
+body {
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(ellipse at center, #0b0b0f 0%, #000 100%);
   overflow: hidden;
-  color: #fff;
-  font-family: "Inter", sans-serif;
-}
-
-/* ==== Background ==== */
-#space-background {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 50% 40%, #0a0a0f, #000);
-  overflow: hidden;
-  z-index: 0;
-}
-
-/* ==== Stars ==== */
-.stars {
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  background-image: radial-gradient(white 1px, transparent 1px);
-  background-size: 50px 50px;
-  animation: twinkle 8s infinite ease-in-out alternate;
-  opacity: 0.6;
-  transform: translate(-25%, -25%);
-}
-
-@keyframes twinkle {
-  from { opacity: 0.4; }
-  to { opacity: 0.9; }
-}
-
-/* ==== Vertical Ribbon (Nebula Effect) ==== */
-.ribbon {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 10px;
-  height: 100%;
-  transform: translateX(-50%);
-  background: linear-gradient(
-    180deg,
-    rgba(180, 100, 255, 0.3),
-    rgba(255, 255, 255, 0.1),
-    rgba(100, 180, 255, 0.3)
-  );
-  filter: blur(60px);
-  opacity: 0.85;
-  z-index: 1;
-}
-
-/* ==== Orbiting Orbs ==== */
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  box-shadow: 0 0 20px currentColor;
-  animation: orbit 25s linear infinite;
-  z-index: 2;
-}
-
-@keyframes orbit {
-  from { transform: rotate(0deg) translateX(var(--radius)) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
-}
-
-/* ==== Orb Colors ==== */
-.orb.hard-techno { color: #ff4040; }       /* Red */
-.orb.techno { color: #a020f0; }            /* Purple */
-.orb.house { color: #ff8c00; }             /* Orange */
-.orb.dnb { color: #00ff66; }               /* Green */
-.orb.dubstep { color: #00ffff; }           /* Cyan */
-.orb.electronic { color: #0f52ba; }        /* Sapphire */
-.orb.pop { color: #ff66cc; }               /* Pink */
-
-/* ==== Comet Streaks ==== */
-.comet {
-  position: absolute;
-  width: 120px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), transparent);
-  opacity: 0.7;
-  border-radius: 50%;
-  filter: blur(3px);
-  transform-origin: left;
-  animation: comet-move 6s linear infinite;
-}
-
-@keyframes comet-move {
-  0% {
-    transform: translate(-200px, -50px) rotate(10deg);
-    opacity: 0;
-  }
-  30% { opacity: 1; }
-  100% {
-    transform: translate(800px, 600px) rotate(10deg);
-    opacity: 0;
-  }
-}
-
-/* ==== Bottom Glass Navbar ==== */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  height: 70px;
-  backdrop-filter: blur(20px);
-  background: rgba(0, 0, 0, 0.4);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
+  justify-content: center;
   align-items: center;
-  justify-content: space-around;
-  color: #ffffffaa;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-  z-index: 10;
+  color: white;
+  font-family: 'Inter', sans-serif;
 }
 
-/* ==== Responsive (Mobile Focused) ==== */
-@media (max-width: 768px) {
-  .bottom-nav {
-    height: 60px;
-    font-size: 0.8rem;
-  }
+/* Root container */
+#root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 
-  .orb {
-    width: 16px;
-    height: 16px;
-  }
+/* Placeholder text (for initial testing) */
+h1 {
+  font-size: 2rem;
+  font-weight: 400;
+  color: #ddd;
+  text-align: center;
 }
