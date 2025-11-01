@@ -1,11 +1,5 @@
 /* app.js
-   Full updated app.js — keeps all existing scene elements and adds:
-    - an audio-reactive horizontal energy ribbon (waveform)
-    - intro autoplay once + fade overlay handling (uses #fade-overlay from index.html)
-    - auto-switch to genre playlist when clicking a bubble
-    - ribbon color adapts to current genre color
-    - ribbon idling motion when no audio playing
-   NOTE: This file assumes the rest of your project (style.css, index.html) is unchanged.
+   Full updated app.js — fade/black-screen removed; everything else preserved.
 */
 
 /* ---------- CONFIG ---------- */
@@ -54,7 +48,8 @@ async function readAllVotesOnce(){
 }
 if (!useFirebase) window.addEventListener('codemq_local_update', ()=> computeAndRenderTop());
 
-/* ---------- UI refs & initial hidden state ---------- */
+/* ---------- UI refs ---------- */
+/* Note: some of these may not exist in your index.html — guard before use */
 const uiWrap = document.getElementById('ui');
 const legendWrap = document.getElementById('legend');
 const genreSelect = document.getElementById('genreSelect');
@@ -66,33 +61,40 @@ const loadSpotify = document.getElementById('loadSpotify');
 const spotifyEmbed = document.getElementById('spotifyEmbed');
 const legendList = document.getElementById('legendList');
 
-// Hide UI and legend initially (they appear when user interacts)
-uiWrap.style.opacity = '0';
-uiWrap.style.pointerEvents = 'none';
-legendWrap.style.opacity = '0';
-legendWrap.style.pointerEvents = 'none';
+/* ---------- IMPORTANT: do NOT hide UI by default anymore ---------- */
+/* If elements exist, show them immediately (no fade/wait). Guards prevent errors. */
+if (uiWrap){
+  uiWrap.style.opacity = '1';
+  uiWrap.style.pointerEvents = 'auto';
+}
+if (legendWrap){
+  legendWrap.style.opacity = '1';
+  legendWrap.style.pointerEvents = 'auto';
+}
 
-/* ---------- Genres & Colors (note: changed mainstream -> pop) ---------- */
+/* ---------- Genres & Colors ---------- */
 const GENRES = [
   { id:'techno', name:'Hard / Techno', color:0xff4f79 },
   { id:'house', name:'House', color:0xffbf5f },
   { id:'dnb', name:'Drum & Bass', color:0x5fff85 },
   { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
   { id:'electronic', name:'Electronic / Dance', color:0x9f5fff },
-  { id:'pop', name:'Pop', color:0xffffff } // replaced mainstream with pop
+  { id:'pop', name:'Pop', color:0xffffff }
 ];
-GENRES.forEach(g=>{
-  const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
-  const li = document.createElement('li'); li.textContent = g.name;
-  li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
-  const lum = (((g.color>>16)&255)*299 + (((g.color>>8)&255)*587) + ((g.color&255)*114))/1000;
-  li.style.color = lum >= 128 ? '#000' : '#fff';
-  legendList.appendChild(li);
-});
-toggleTop.addEventListener('click', ()=> leftPanel.classList.toggle('hidden'));
-genreSelect.addEventListener('change', ()=> computeAndRenderTop());
+if (genreSelect && legendList){
+  GENRES.forEach(g=>{
+    const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
+    const li = document.createElement('li'); li.textContent = g.name;
+    li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
+    const lum = (((g.color>>16)&255)*299 + (((g.color>>8)&255)*587) + ((g.color&255)*114))/1000;
+    li.style.color = lum >= 128 ? '#000' : '#fff';
+    legendList.appendChild(li);
+  });
+  genreSelect.addEventListener('change', ()=> computeAndRenderTop());
+}
+if (toggleTop && leftPanel) toggleTop.addEventListener('click', ()=> leftPanel.classList.toggle('hidden'));
 
-/* ---------- Three.js core (unchanged) ---------- */
+/* ---------- Three.js core ---------- */
 const wrap = document.getElementById('canvasWrap') || document.body;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x00000c, 0.00009);
@@ -105,13 +107,19 @@ camera.lookAt(0,0,0);
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x000010, 1);
+// Make renderer transparent so body background (radial gradient) shows through
+renderer.setClearColor(0x000010, 0);
 wrap.appendChild(renderer.domElement);
+
+// Ensure canvas respects your CSS (fixed/inset)
+renderer.domElement.style.position = 'fixed';
+renderer.domElement.style.inset = '0';
+renderer.domElement.style.zIndex = '0';
 
 const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
 const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(10,20,10); scene.add(dir);
 
-/* ---------- Starfield & Dust (unchanged) ---------- */
+/* ---------- Starfield & Dust ---------- */
 function makeStarLayer(count, spreadX=5000, spreadY=3000, spreadZ=5000, size=1.2, opacity=0.9){
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(count * 3);
@@ -139,7 +147,7 @@ const dustPlane = new THREE.Mesh(new THREE.PlaneGeometry(7000, 3800),
 dustPlane.position.set(0,0,-2600);
 scene.add(dustPlane);
 
-/* ---------- Procedural small textures (unchanged) ---------- */
+/* ---------- Procedural small textures ---------- */
 function generateGlowTexture(colorHex){
   const size = 256;
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -164,7 +172,7 @@ function generateStarTexture(){
 }
 function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 
-/* ---------- ORB cluster (unchanged) ---------- */
+/* ---------- ORB cluster ---------- */
 const CLUSTER_RADIUS = 420;
 const ORB_GROUP = new THREE.Group(); scene.add(ORB_GROUP);
 const ORB_MESHES = {};
@@ -234,7 +242,7 @@ GENRES.forEach((g, idx) => {
   ORB_MESHES[g.id] = { id:g.id, idx, container, core: coreMesh, ringObj, gas:gasMesh, baseAngle };
 });
 
-/* ---------- Aurora/smoke layers (unchanged) ---------- */
+/* ---------- Aurora/smoke layers ---------- */
 function createAuroraSprite(colorStops, size=1600, opacity=0.3){
   const c = document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
   const grad = ctx.createRadialGradient(size/2,size/2,20,size/2,size/2,size*0.95);
@@ -271,7 +279,7 @@ cornerSpecs.forEach((s,i)=>{
   scene.add(spr); cornerSprites.push(spr);
 });
 
-/* ---------- Audio / WebAudio Controller (extended to expose time-domain) ---------- */
+/* ---------- Audio / WebAudio Controller ---------- */
 const audioController = (function(){
   let audioCtx=null, analyser=null, source=null, freqData=null, timeData=null, audioEl=null, active=false;
   async function ensure(){
@@ -296,8 +304,8 @@ const audioController = (function(){
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
       active = true;
-      // attach small player to spotifyEmbed (replace)
-      spotifyEmbed.innerHTML = ''; spotifyEmbed.appendChild(audioEl);
+      // attach small player to spotifyEmbed (replace) if available
+      if (spotifyEmbed) { spotifyEmbed.innerHTML = ''; spotifyEmbed.appendChild(audioEl); }
       return true;
     } catch(err){
       console.warn('audio load failed', err); active=false; return false;
@@ -327,19 +335,13 @@ const audioController = (function(){
   return { loadUrl, stop, getAmps, getTimeDomain, isActive };
 })();
 
-/* ---------- Ribbon: energy trail that uses time-domain waveform ---------- */
-/* Ribbon design:
-   - a horizontal series of points across the visible world width
-   - y displacement updated from analyser time-domain data
-   - a blurred sprite behind for glow & brightness modulation
-*/
+/* ---------- Ribbon ---------- */
 const RIBBON = {};
 function initRibbon(){
   const POINTS = 256;
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(POINTS * 3);
   const colors = new Float32Array(POINTS * 3);
-  // compute horizontal width in world units at z=0
   function worldWidthAtZ(z) {
     const vFOV = camera.fov * Math.PI / 180; // radians
     const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
@@ -350,24 +352,20 @@ function initRibbon(){
   for (let i=0;i<POINTS;i++){
     const x = -width/2 + (i/(POINTS-1)) * width;
     positions[i*3] = x;
-    positions[i*3+1] = Math.sin(i/6) * 10; // gentle idle
-    positions[i*3+2] = -120; // place ribbon slightly in front of deeper scene, behind bubbles
-    // default white-ish color
+    positions[i*3+1] = Math.sin(i/6) * 10;
+    positions[i*3+2] = -120;
     colors[i*3] = 0.8; colors[i*3+1] = 0.7; colors[i*3+2] = 1.0;
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  // Line material — use vertex colors, additive blending for brightness
   const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
   const line = new THREE.Line(geometry, mat);
   line.frustumCulled = false;
   scene.add(line);
 
-  // Glow sprite behind (large textured rectangle)
   const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
   const ctx = c.getContext('2d');
-  // horizontal gradient for base glow texture
   const g = ctx.createLinearGradient(0,0,c.width,0);
   g.addColorStop(0, 'rgba(255,255,255,0.0)');
   g.addColorStop(0.2, 'rgba(255,255,255,0.06)');
@@ -378,7 +376,6 @@ function initRibbon(){
   const glowTex = new THREE.CanvasTexture(c);
   const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false });
   const sprite = new THREE.Sprite(spriteMat);
-  // scale in world units relative to camera frustum
   sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
   sprite.position.set(0, -8, -140);
   scene.add(sprite);
@@ -393,7 +390,7 @@ function initRibbon(){
 }
 initRibbon();
 
-/* ---------- Map genres to SoundCloud playlist URLs (generic placeholders) ---------- */
+/* ---------- GENRE PLAYLIST MAP ---------- */
 const GENRE_PLAYLISTS = {
   'techno': 'https://soundcloud.com/your-hard-techno-playlist',
   'house':  'https://soundcloud.com/your-house-playlist',
@@ -407,23 +404,23 @@ const GENRE_PLAYLISTS = {
 let currentGenreId = null;
 async function playGenreAudio(genreId){
   const url = GENRE_PLAYLISTS[genreId] || GENRE_PLAYLISTS['electronic'];
-  await audioController.loadUrl(url, { loop: true });
+  try {
+    await audioController.loadUrl(url, { loop: true });
+  } catch(e) {
+    // continue even if load fails (no blocking)
+  }
   currentGenreId = genreId;
-  // tint ribbon to the genre color
   const g = GENRES.find(x=>x.id===genreId);
-  if (g){
-    // set per-vertex color toward genre color (subtle)
+  if (g && RIBBON.geometry && RIBBON.geometry.attributes.color){
     const colors = RIBBON.geometry.attributes.color.array;
     const tr = ((g.color>>16)&255)/255, tg = ((g.color>>8)&255)/255, tb = (g.color&255)/255;
     for (let i=0;i<RIBBON.points;i++){
-      // blend between base and genre color
       const idx = i*3;
       colors[idx] = 0.25 + tr * 0.75;
       colors[idx+1] = 0.25 + tg * 0.75;
       colors[idx+2] = 0.25 + tb * 0.75;
     }
     RIBBON.geometry.attributes.color.needsUpdate = true;
-    // tint glow sprite slightly by setting its material color
     if (RIBBON.sprite && RIBBON.sprite.material) {
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.6;
@@ -431,15 +428,14 @@ async function playGenreAudio(genreId){
   }
 }
 
-/* ---------- Raycast / Click handling (plays genre audio on bubble click) ---------- */
+/* ---------- Raycast / Click handling ---------- */
 const raycaster = new THREE.Raycaster();
 const ndcMouse = new THREE.Vector2();
 
 function onPointerDown(e){
-  // reveal UI on first interaction
-  if (uiWrap.style.opacity === '0') {
+  if (uiWrap && uiWrap.style && uiWrap.style.opacity === '0') {
     uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-    legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
+    if (legendWrap){ legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto'; }
   }
 
   const rect = renderer.domElement.getBoundingClientRect();
@@ -447,21 +443,17 @@ function onPointerDown(e){
   ndcMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(ndcMouse, camera);
 
-  // find cores
   const cores = [];
   ORB_GROUP.children.forEach(c => { c.traverse(n => { if (n.isMesh && n.geometry && n.geometry.type === 'SphereGeometry') cores.push(n); }); });
   const hits = raycaster.intersectObjects(cores, true);
   if (hits.length > 0){
     let hit = hits[0].object;
-    // find parent container
     let parent = null;
     for (const c of ORB_GROUP.children){ if (c.children.includes(hit) || c === hit || c.children.includes(hit.parent)) { parent = c; break; } }
     if (parent){
       const found = Object.values(ORB_MESHES).find(o => o.container === parent);
       if (found) {
-        // immediately switch music to that genre (user wanted music change on bubble click)
         playGenreAudio(found.id).catch(()=>{});
-        // open the prompt/modal afterwards
         openCenteredModal(found.id);
       }
     }
@@ -469,7 +461,7 @@ function onPointerDown(e){
 }
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
-/* ---------- Centered modal code (unchanged except uses playGenreAudio earlier) ---------- */
+/* ---------- Centered modal code ---------- */
 let activeModal = null;
 function closeModal(){ if(!activeModal) return; try{ activeModal.dom.remove(); }catch(e){} activeModal=null; }
 function openCenteredModal(genreId){
@@ -525,16 +517,15 @@ function openCenteredModal(genreId){
     const url = URL.createObjectURL(f);
     await audioController.loadUrl(url, { loop: true });
     insertAudioPlayerInModal(modal, url, f.name);
-    // also tint ribbon neutral (local track not tied to genre)
     currentGenreId = null;
   });
   modal.querySelector('#modalAudioUrl').addEventListener('keydown', async (ev)=>{
     if (ev.key === 'Enter'){ const url = modalAudioUrl.value.trim(); if (!url) return; await audioController.loadUrl(url, { loop: true }); insertAudioPlayerInModal(modal, url, url); currentGenreId = null; }
   });
   activeModal = { dom: modal, genreId };
-  uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-  legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
-  setTimeout(()=> modal.querySelector('.artist').focus(), 120);
+  if (uiWrap){ uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto'; }
+  if (legendWrap){ legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto'; }
+  setTimeout(()=> { try { modal.querySelector('.artist').focus(); } catch(e){} }, 120);
 }
 
 function insertAudioPlayerInModal(modal, src, label){
@@ -549,7 +540,7 @@ function insertAudioPlayerInModal(modal, src, label){
   info.textContent = `Loaded: ${label}`;
 }
 
-/* ---------- flash feedback (unchanged) ---------- */
+/* ---------- flash feedback ---------- */
 function flashOrb(genreId){
   const o = ORB_MESHES[genreId]; if (!o) return;
   const mat = o.core.material; const orig = mat.emissiveIntensity || 0.6;
@@ -557,7 +548,7 @@ function flashOrb(genreId){
   setTimeout(()=> mat.emissiveIntensity = orig, 900);
 }
 
-/* ---------- Top computation UI (unchanged) ---------- */
+/* ---------- Top computation UI ---------- */
 async function computeAndRenderTop(){
   const raw = await readAllVotesOnce();
   const perGenreCounts = {};
@@ -570,11 +561,11 @@ async function computeAndRenderTop(){
     perGenreCounts[g.id]=sorted;
     updateOrbHighlight(g.id, sorted[0] ? sorted[0].count : 0);
   });
-  const sel = genreSelect.value || GENRES[0].id;
+  const sel = (genreSelect && genreSelect.value) ? genreSelect.value : GENRES[0].id;
   const arr = perGenreCounts[sel] || []; let html='';
   for (let i=0;i<Math.min(50,arr.length);i++) html += `<div class="row"><strong>${i+1}. ${escapeHtml(arr[i].artist)}</strong><span class="score">${arr[i].count}</span></div>`;
   if (!html) html = '<div style="padding:8px;color:#bbb">No suggestions yet — be the first!</div>';
-  topList.innerHTML = html;
+  if (topList) topList.innerHTML = html;
 }
 function updateOrbHighlight(genreId, topCount){
   const o = ORB_MESHES[genreId]; if (!o) return;
@@ -584,7 +575,7 @@ function updateOrbHighlight(genreId, topCount){
   o.core.scale.set(base, base, base);
 }
 
-/* ---------- Animation / render loop (adds ribbon waveform update) ---------- */
+/* ---------- Animation / render loop ---------- */
 let start = performance.now();
 function animate(){
   requestAnimationFrame(animate);
@@ -594,7 +585,7 @@ function animate(){
   const bass = amps ? amps.bass : 0;
   const rms = amps ? amps.rms : 0.06 + Math.sin(t*0.25)*0.02;
 
-  // stars twinkle (unchanged)
+  // stars twinkle
   starsFar.points.rotation.z += 0.00035;
   starsNear.points.rotation.z -= 0.00048;
   starsNear.mat.opacity = 0.55 + Math.sin(t*0.9 + 3.1) * 0.08 + rms * 0.12;
@@ -617,7 +608,7 @@ function animate(){
   camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
   camera.lookAt(0,0,0);
 
-  // cluster / bubbles orbit (unchanged)
+  // cluster / bubbles orbit
   const clusterSpeed = 0.14 + bass * 0.4;
   GENRES.forEach((g, idx) => {
     const o = ORB_MESHES[g.id];
@@ -641,31 +632,27 @@ function animate(){
     o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
   });
 
-  /* --- Ribbon update: use time-domain data if available, otherwise idle motion --- */
+  // Ribbon update: time-domain or idle flow
   try {
     if (RIBBON && RIBBON.geometry){
       const pos = RIBBON.geometry.attributes.position.array;
       const pts = RIBBON.points;
       const timeData = audioController.getTimeDomain();
       if (timeData && timeData.length > 0){
-        // map timeData (Uint8 0..255) to -1..1 and apply smoothing across ribbon
         const step = Math.floor(timeData.length / pts) || 1;
         for (let i=0;i<pts;i++){
           const td = timeData[Math.min(timeData.length-1, i*step)];
           const v = (td / 128.0) - 1.0; // -1..1
-          const amplitude = 120 + (currentGenreId ? 80 : 0); // scale up if genre selected
+          const amplitude = 120 + (currentGenreId ? 80 : 0);
           const y = v * amplitude * (0.7 + Math.sin(i*0.2 + t*0.7) * 0.14);
           const idx = i*3;
-          pos[idx+1] = y + -10; // offset a bit vertically
-          // slowly shift z to give forward direction feel
+          pos[idx+1] = y + -10;
           pos[idx+2] = -120 + Math.sin(t*0.3 + i*0.06)*6;
         }
-        // brightness adaptation: adjust sprite opacity based on RMS
         const amps = audioController.getAmps();
         const brightness = amps ? (0.3 + amps.rms*1.4) : 0.4;
         if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.25 + brightness);
       } else {
-        // idle flow: gentle sine motion
         for (let i=0;i<pts;i++){
           const idx = i*3;
           pos[idx+1] = Math.sin(i*0.12 + t*0.9) * 14 + Math.sin(i*0.09 + t*0.3)*6 - 8;
@@ -681,16 +668,14 @@ function animate(){
 }
 animate();
 
-/* ---------- Resize (update ribbon width on resize) ---------- */
+/* ---------- Resize ---------- */
 window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-  // recompute ribbon width and sprite scale
   if (RIBBON && RIBBON.width){
     const width = (2 * Math.tan(camera.fov * Math.PI/180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
     RIBBON.width = width;
     if (RIBBON.sprite) RIBBON.sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
-    // update x coordinates of ribbon points
     const pos = RIBBON.geometry.attributes.position.array;
     for (let i=0;i<RIBBON.points;i++){
       const x = -width/2 + (i/(RIBBON.points-1)) * width;
@@ -705,39 +690,10 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-/* ---------- Intro fade + one-time autoplay (overlay uses #fade-overlay from index.html) ---------- */
-const INTRO_TRACK = 'https://soundcloud.com/user-200235414/wave-1'; // your intro track (page URL; browsers may require a playable stream)
-let introPlayedOnce = false;
-
-window.addEventListener("load", async () => {
-  // Fade overlay element present in index.html: #fade-overlay
-  const overlay = document.getElementById('fade-overlay');
-  // Try to play intro track via audioController. Note: SoundCloud page URLs often won't play directly via <audio>.
-  // If the URL is not a direct audio file, playback may fail; the fallback is to wait for interaction.
-  try {
-    // Load intro (no loop)
-    await audioController.loadUrl(INTRO_TRACK, { loop: false });
-    introPlayedOnce = true;
-  } catch(e){
-    console.warn('Intro load attempt failed (may require valid audio stream).', e);
-  }
-
-  // start fade immediately and remove after 2s (user wanted 2 seconds)
-  if (overlay){
-    overlay.style.transition = 'opacity 2s ease';
-    // slight delay to ensure audio start attempt runs
-    setTimeout(()=> {
-      overlay.style.opacity = '0';
-      setTimeout(()=> { try{ overlay.remove(); }catch(e){} }, 2100);
-    }, 0);
-  }
-
-  // reveal UI slightly after fade begins (so ribbon & wave visible first)
-  setTimeout(()=> {
-    uiWrap.style.opacity = '1'; uiWrap.style.pointerEvents = 'auto';
-    legendWrap.style.opacity = '1'; legendWrap.style.pointerEvents = 'auto';
-  }, 900);
-});
+/* ---------- NOTE ----------
+   Removed: overlay/fade logic and auto-play fade removal on load.
+   UI is shown immediately and renderer is transparent so page background shows.
+*/
 
 /* ---------- Sanity log ---------- */
-console.log('app.js loaded — ribbon and audio-reactive features enabled.');
+console.log('app.js loaded — ribbon and audio-reactive features enabled (fade removed).');
