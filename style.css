@@ -1,107 +1,149 @@
-/* ==== Global Reset ==== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html,
 body {
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 50% 30%, #050510, #000);
-  overflow: hidden;
-}
-
-/* ==== Scene Container ==== */
-.scene {
-  position: relative;
-  width: 100vw;
   height: 100vh;
+  width: 100vw;
+  background: radial-gradient(ellipse at bottom, #0d0d1a 0%, #000 100%);
   overflow: hidden;
+  color: white;
+  font-family: 'Inter', sans-serif;
 }
 
-/* ==== Base Ribbon Pillar ==== */
-.ribbon {
+/* UI in top right */
+.ui {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  text-align: right;
+}
+
+.ui h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.genres {
+  margin-top: 5px;
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+/* Top 50 list */
+.top50 {
+  position: absolute;
+  top: 100px;
+  right: 30px;
+  width: 240px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 10px 15px;
+  backdrop-filter: blur(10px);
+}
+
+.top50 h2 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding-bottom: 5px;
+}
+
+.top50 ul {
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.4rem;
+}
+
+/* Space + orbit animation */
+.space {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
+  left: 0;
   height: 100%;
-  background: linear-gradient(
-    180deg,
-    rgba(180, 100, 255, 0.6),
-    rgba(255, 255, 255, 0.2),
-    rgba(120, 200, 255, 0.5)
-  );
-  filter: blur(20px);
-  opacity: 0.8;
+  width: 100%;
+  overflow: hidden;
+  z-index: -1;
 }
 
-/* ==== Surrounding Diffusion ==== */
-.ribbon::before,
-.ribbon::after {
+/* rotating group */
+.orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 400px;
+  height: 400px;
+  transform: translate(-50%, -50%);
+  animation: rotate 60s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* planets */
+.planet {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  box-shadow: 0 0 25px rgba(255,255,255,0.3);
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+/* glowing pulse */
+@keyframes glow {
+  0% { box-shadow: 0 0 10px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.05); }
+  100% { box-shadow: 0 0 30px rgba(255,255,255,0.6), 0 0 80px rgba(150,150,255,0.3); }
+}
+
+/* add faint rotating rings for stardust */
+.planet::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: ringRotate 10s linear infinite;
+  filter: blur(1px);
+}
+
+@keyframes ringRotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* planet positions */
+.p1 { width: 30px; height: 30px; top: 0; left: 50%; transform: translateX(-50%); }
+.p2 { width: 20px; height: 20px; top: 20%; left: 85%; }
+.p3 { width: 25px; height: 25px; top: 50%; left: 100%; }
+.p4 { width: 15px; height: 15px; top: 80%; left: 85%; }
+.p5 { width: 35px; height: 35px; top: 100%; left: 50%; transform: translate(-50%, -100%); }
+.p6 { width: 20px; height: 20px; top: 80%; left: 15%; }
+.p7 { width: 25px; height: 25px; top: 50%; left: 0%; }
+
+/* Stars background */
+body::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 100%;
-  border-radius: 50%;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 0, 150, 0.08),
-    rgba(0, 255, 255, 0.05),
-    rgba(255, 255, 255, 0.02)
-  );
-  filter: blur(60px);
-  animation: shimmer 6s ease-in-out infinite alternate;
-}
-
-.ribbon::after {
-  width: 120px;
-  opacity: 0.3;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 180, 255, 0.08),
-    rgba(255, 255, 255, 0.05),
-    rgba(255, 0, 200, 0.05)
-  );
-  animation-delay: 2s;
-}
-
-/* ==== Subtle Shimmer Animation ==== */
-@keyframes shimmer {
-  from {
-    opacity: 0.4;
-    filter: blur(40px);
-  }
-  to {
-    opacity: 0.8;
-    filter: blur(70px);
-  }
-}
-
-/* ==== Ambient Floating Light Particles ==== */
-.particle {
-  position: absolute;
-  width: 2px;
-  height: 2px;
-  background: white;
-  border-radius: 50%;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
   opacity: 0.4;
-  animation: drift 8s ease-in-out infinite;
+  animation: drift 200s linear infinite;
 }
 
 @keyframes drift {
-  from {
-    transform: translateY(0) translateX(0);
-    opacity: 0.2;
-  }
-  to {
-    transform: translateY(-40px) translateX(20px);
-    opacity: 0.8;
-  }
+  from { transform: translate(0,0); }
+  to { transform: translate(-500px, -500px); }
 }
