@@ -1,36 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cosmic Playlist</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <canvas id="space"></canvas>
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
+import App from "./App";
 
-  <!-- Playlist UI -->
-  <div class="playlist-ui">
-    <h1>Cosmic Playlist</h1>
-    <div class="genres">
-      <span>Ambient</span>
-      <span>EDM</span>
-      <span>Synthwave</span>
-      <span>Chill</span>
-    </div>
-    <div class="controls">
-      <button>⏮</button>
-      <button>⏯</button>
-      <button>⏭</button>
-    </div>
-  </div>
-
-  <!-- Top 50 List -->
-  <div class="top50">
-    <h2>Top 50</h2>
-    <ul id="songs"></ul>
-  </div>
-
-  <script src="script.js"></script>
-</body>
-</html>
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
