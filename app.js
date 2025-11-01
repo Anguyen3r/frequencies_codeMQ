@@ -1,5 +1,6 @@
 /* app.js
    Full updated app.js — fade/black-screen removed; everything else preserved.
+   Adds 7 vertical weaving pillar ribbons (one per genre/planet) while keeping horizontal ribbon.
 */
 
 /* ---------- CONFIG ---------- */
@@ -62,7 +63,6 @@ const spotifyEmbed = document.getElementById('spotifyEmbed');
 const legendList = document.getElementById('legendList');
 
 /* ---------- IMPORTANT: do NOT hide UI by default anymore ---------- */
-/* If elements exist, show them immediately (no fade/wait). Guards prevent errors. */
 if (uiWrap){
   uiWrap.style.opacity = '1';
   uiWrap.style.pointerEvents = 'auto';
@@ -72,15 +72,17 @@ if (legendWrap){
   legendWrap.style.pointerEvents = 'auto';
 }
 
-/* ---------- Genres & Colors ---------- */
+/* ---------- Genres & Colors (7 genres, matches 7 bubbles) ---------- */
 const GENRES = [
-  { id:'techno', name:'Hard / Techno', color:0xff4f79 },
+  { id:'hard-techno', name:'Hard Techno', color:0xff2b6a },
+  { id:'techno', name:'Techno', color:0xff4f79 },
   { id:'house', name:'House', color:0xffbf5f },
   { id:'dnb', name:'Drum & Bass', color:0x5fff85 },
-  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
   { id:'electronic', name:'Electronic / Dance', color:0x9f5fff },
+  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
   { id:'pop', name:'Pop', color:0xffffff }
 ];
+// populate select/legend if present
 if (genreSelect && legendList){
   GENRES.forEach(g=>{
     const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
@@ -107,11 +109,9 @@ camera.lookAt(0,0,0);
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-// Make renderer transparent so body background (radial gradient) shows through
+// Transparent so page background can show
 renderer.setClearColor(0x000010, 0);
 wrap.appendChild(renderer.domElement);
-
-// Ensure canvas respects your CSS (fixed/inset)
 renderer.domElement.style.position = 'fixed';
 renderer.domElement.style.inset = '0';
 renderer.domElement.style.zIndex = '0';
@@ -172,7 +172,7 @@ function generateStarTexture(){
 }
 function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 
-/* ---------- ORB cluster ---------- */
+/* ---------- ORB cluster (planets/bubbles) ---------- */
 const CLUSTER_RADIUS = 420;
 const ORB_GROUP = new THREE.Group(); scene.add(ORB_GROUP);
 const ORB_MESHES = {};
@@ -227,6 +227,7 @@ GENRES.forEach((g, idx) => {
   const baseAngle = (idx / GENRES.length) * Math.PI*2;
   container.userData.baseAngle = baseAngle;
   container.userData.idx = idx;
+  // initial placement in a ring
   container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, Math.sin(baseAngle)*CLUSTER_RADIUS*0.6, -idx*6);
 
   const tilt = { x:(Math.random()*0.9 - 0.45)*Math.PI/2, y:(Math.random()*0.9 - 0.45)*Math.PI/2, z:(Math.random()*0.6 - 0.3)*Math.PI/6 };
@@ -297,14 +298,12 @@ const audioController = (function(){
       if (!audioEl){ audioEl = document.createElement('audio'); audioEl.crossOrigin='anonymous'; audioEl.controls=true; audioEl.style.width='100%'; }
       audioEl.src = url;
       audioEl.loop = !!loop;
-      // try to play (may be blocked by browser until interaction)
       audioEl.play().catch(()=>{});
       if (source) try{ source.disconnect(); }catch(e){}
       source = audioCtx.createMediaElementSource(audioEl);
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
       active = true;
-      // attach small player to spotifyEmbed (replace) if available
       if (spotifyEmbed) { spotifyEmbed.innerHTML = ''; spotifyEmbed.appendChild(audioEl); }
       return true;
     } catch(err){
@@ -335,7 +334,7 @@ const audioController = (function(){
   return { loadUrl, stop, getAmps, getTimeDomain, isActive };
 })();
 
-/* ---------- Ribbon ---------- */
+/* ---------- Horizontal Ribbon: energy trail that uses time-domain waveform ---------- */
 const RIBBON = {};
 function initRibbon(){
   const POINTS = 256;
@@ -343,7 +342,7 @@ function initRibbon(){
   const positions = new Float32Array(POINTS * 3);
   const colors = new Float32Array(POINTS * 3);
   function worldWidthAtZ(z) {
-    const vFOV = camera.fov * Math.PI / 180; // radians
+    const vFOV = camera.fov * Math.PI / 180;
     const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
     const width = height * camera.aspect;
     return width;
@@ -358,12 +357,12 @@ function initRibbon(){
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
   const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
   const line = new THREE.Line(geometry, mat);
   line.frustumCulled = false;
   scene.add(line);
 
+  // soft glow sprite behind
   const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
   const ctx = c.getContext('2d');
   const g = ctx.createLinearGradient(0,0,c.width,0);
@@ -390,25 +389,86 @@ function initRibbon(){
 }
 initRibbon();
 
+/* ---------- Vertical Pillar Ribbons (one per genre/orb) ---------- */
+/* Plan:
+   - create a tall plane for each genre behind its orb
+   - plane has gradient texture derived from genre color (soft translucent)
+   - plane geometry subdivided horizontally to allow weaving (per-vertex x displacement)
+   - in animate loop we'll offset vertices with sine waves to create weaving
+*/
+const PILLAR_RIBBONS = []; // { mesh, geo, baseX, baseZ, idx, width, height, color }
+function makePillarTexture(colorHex, h=1024, w=128){
+  // vertical gradient canvas
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  const rgba = (a)=> toCssRgba(colorHex, a);
+  grad.addColorStop(0.00, rgba(0.0));
+  grad.addColorStop(0.08, rgba(0.06));
+  grad.addColorStop(0.25, rgba(0.12));
+  grad.addColorStop(0.45, rgba(0.18));
+  grad.addColorStop(0.65, rgba(0.12));
+  grad.addColorStop(0.92, rgba(0.06));
+  grad.addColorStop(1.00, rgba(0.0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,w,h);
+  // a faint horizontal soft-edge to add width highlight
+  const hg = ctx.createLinearGradient(0,0,w,0);
+  hg.addColorStop(0, 'rgba(255,255,255,0.00)');
+  hg.addColorStop(0.45, 'rgba(255,255,255,0.04)');
+  hg.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+  hg.addColorStop(0.55, 'rgba(255,255,255,0.04)');
+  hg.addColorStop(1, 'rgba(255,255,255,0.00)');
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = hg; ctx.fillRect(0,0,w,h);
+  ctx.globalCompositeOperation = 'source-over';
+  return new THREE.CanvasTexture(c);
+}
+
+function initPillarRibbons(){
+  // chosen visual dims (world units). Pillars are tall and narrow.
+  const pillarHeight = 1200;
+  const pillarWidth = 160; // world width
+  const hSegs = 48; // vertical subdivisions
+  const wSegs = 10; // horizontal subdivisions (for weaving)
+  GENRES.forEach((g, idx) => {
+    // plane geometry with subdivisions
+    const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
+    // material with gradient texture based on genre color — translucent, additive
+    const tex = makePillarTexture(g.color, 1024, 192);
+    tex.minFilter = THREE.LinearMipMapLinearFilter;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true, opacity:0.20, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    // rotate to stand vertically and face forward slightly
+    mesh.rotation.x = -Math.PI/2 + 0.02; // stand up (x axis)
+    mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1); // slight slant to left/right for weaving feel
+    // place behind the orbs along z and at roughly same x (we'll sync in animate)
+    mesh.position.set(0, -80, -180 - idx*6);
+    mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
+    scene.add(mesh);
+    PILLAR_RIBBONS.push({ mesh, geo, mat, idx, baseX:0 });
+  });
+}
+initPillarRibbons();
+
 /* ---------- GENRE PLAYLIST MAP ---------- */
 const GENRE_PLAYLISTS = {
-  'techno': 'https://soundcloud.com/your-hard-techno-playlist',
-  'house':  'https://soundcloud.com/your-house-playlist',
-  'dnb':    'https://soundcloud.com/your-dnb-playlist',
-  'dubstep':'https://soundcloud.com/your-dubstep-playlist',
-  'electronic':'https://soundcloud.com/your-electronic-playlist',
-  'pop':    'https://soundcloud.com/your-pop-playlist'
+  'hard-techno': 'https://soundcloud.com/your-hard-techno-playlist',
+  'techno':      'https://soundcloud.com/your-techno-playlist',
+  'house':       'https://soundcloud.com/your-house-playlist',
+  'dnb':         'https://soundcloud.com/your-dnb-playlist',
+  'electronic':  'https://soundcloud.com/your-electronic-playlist',
+  'dubstep':     'https://soundcloud.com/your-dubstep-playlist',
+  'pop':         'https://soundcloud.com/your-pop-playlist'
 };
 
-/* ---------- Play selected genre audio and adapt ribbon color ---------- */
+/* ---------- Play selected genre audio and adapt horizontal ribbon color ---------- */
 let currentGenreId = null;
 async function playGenreAudio(genreId){
   const url = GENRE_PLAYLISTS[genreId] || GENRE_PLAYLISTS['electronic'];
-  try {
-    await audioController.loadUrl(url, { loop: true });
-  } catch(e) {
-    // continue even if load fails (no blocking)
-  }
+  try { await audioController.loadUrl(url, { loop: true }); } catch(e){ /* noop */ }
   currentGenreId = genreId;
   const g = GENRES.find(x=>x.id===genreId);
   if (g && RIBBON.geometry && RIBBON.geometry.attributes.color){
@@ -424,6 +484,11 @@ async function playGenreAudio(genreId){
     if (RIBBON.sprite && RIBBON.sprite.material) {
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.6;
+    }
+    // also tint corresponding pillar more strongly
+    const foundIdx = GENRES.findIndex(x=>x.id===genreId);
+    if (PILLAR_RIBBONS[foundIdx]) {
+      PILLAR_RIBBONS[foundIdx].mesh.material.opacity = 0.34;
     }
   }
 }
@@ -461,7 +526,7 @@ function onPointerDown(e){
 }
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
-/* ---------- Centered modal code ---------- */
+/* ---------- Centered modal code (unchanged) ---------- */
 let activeModal = null;
 function closeModal(){ if(!activeModal) return; try{ activeModal.dom.remove(); }catch(e){} activeModal=null; }
 function openCenteredModal(genreId){
@@ -540,7 +605,7 @@ function insertAudioPlayerInModal(modal, src, label){
   info.textContent = `Loaded: ${label}`;
 }
 
-/* ---------- flash feedback ---------- */
+/* ---------- flash feedback (orb highlight) ---------- */
 function flashOrb(genreId){
   const o = ORB_MESHES[genreId]; if (!o) return;
   const mat = o.core.material; const orig = mat.emissiveIntensity || 0.6;
@@ -575,7 +640,7 @@ function updateOrbHighlight(genreId, topCount){
   o.core.scale.set(base, base, base);
 }
 
-/* ---------- Animation / render loop ---------- */
+/* ---------- Animation / render loop (includes horizontal ribbon + pillar weave) ---------- */
 let start = performance.now();
 function animate(){
   requestAnimationFrame(animate);
@@ -617,7 +682,7 @@ function animate(){
     const angle = t * clusterSpeed + phaseOffset * (0.6 + idx*0.08);
     const ex = CLUSTER_RADIUS * (1 + Math.sin(idx + t*0.12)*0.02);
     const ey = CLUSTER_RADIUS * 0.6 * (1 + Math.cos(idx*0.7 + t*0.11)*0.02);
-    o.container.position.x = Math.cos(angle) * ex + (idx - 2.5) * Math.sin(t*0.03)*2;
+    o.container.position.x = Math.cos(angle) * ex + (idx - (GENRES.length-1)/2) * Math.sin(t*0.03)*2;
     o.container.position.y = Math.sin(angle * 1.02 + idx*0.31) * ey + Math.cos(idx*0.5 + t*0.2)*4;
     o.container.position.z = Math.sin(t*(0.55 + idx*0.02))*10 - idx*4;
 
@@ -630,9 +695,17 @@ function animate(){
     o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t*0.9 + idx) + bass*0.018;
 
     o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
+
+    // sync corresponding pillar base X to orb X (pillars follow bubbles)
+    const pillar = PILLAR_RIBBONS[idx];
+    if (pillar){
+      pillar.mesh.userData.baseX = o.container.position.x;
+      // small Z sync subtle depth parallax
+      pillar.mesh.position.z = o.container.position.z - 50 - idx*2;
+    }
   });
 
-  // Ribbon update: time-domain or idle flow
+  /* --- Horizontal Ribbon update: use time-domain data if available, otherwise idle motion --- */
   try {
     if (RIBBON && RIBBON.geometry){
       const pos = RIBBON.geometry.attributes.position.array;
@@ -662,7 +735,56 @@ function animate(){
       }
       RIBBON.geometry.attributes.position.needsUpdate = true;
     }
-  } catch(e){ /* ribbon safe */ }
+  } catch(e){ /* safe */ }
+
+  /* --- Pillar ribbon weave update --- */
+  try {
+    // global weave settings
+    const globalAmp = 22 + bass * 140; // amplitude grows with bass
+    const freq = 0.9 + (rms * 6.0);
+    PILLAR_RIBBONS.forEach((p, pIdx) => {
+      const mesh = p.mesh;
+      const geo = mesh.geometry;
+      // We'll modify geometry.vertices (buffer) positions.x for a horizontal weave across vertical segments
+      const posAttr = geo.attributes.position;
+      const arr = posAttr.array;
+      const itemSize = posAttr.itemSize || 3;
+      // geometry parameters as created: plane centered at (0,0) with width along X and height along Y
+      const wSegs = mesh.userData.wSegs || 10;
+      const hSegs = mesh.userData.hSegs || 48;
+      // base X offset (follows its orb)
+      const baseX = mesh.userData.baseX || mesh.position.x;
+      const baseZ = mesh.userData.baseZ || mesh.position.z;
+      // per-pillar phase to stagger weave
+      const phase = pIdx * 0.6;
+      // loop through vertices: grid (wSegs+1) x (hSegs+1)
+      let vi = 0;
+      for (let iy = 0; iy <= hSegs; iy++){
+        // y portion from -height/2..height/2
+        const vNorm = iy / hSegs;
+        const yFactor = (vNorm - 0.5) * mesh.userData.height;
+        for (let ix = 0; ix <= wSegs; ix++){
+          const idx = vi * 3; // x,y,z
+          // compute horizontal offset for this vertex based on vertical position and time
+          const xBaseLocal = (-mesh.userData.width/2) + (ix / wSegs) * mesh.userData.width;
+          // displacement: combination of global sin + per-pillar phase + slight per-ix staggering
+          const disp = Math.sin((vNorm * Math.PI * 4.0) + (t * freq) + phase + ix*0.18) * (globalAmp * (0.18 + (ix/wSegs)*0.6));
+          // place vertex.x to baseX + xBaseLocal + disp * small factor (keeps weaving subtle)
+          arr[idx] = baseX + xBaseLocal + disp * 0.012; // small multiplier tuned to world scale
+          // vertex.y: vertical location — preserve base layout (plane geometry initial y is in arr[idx+1])
+          arr[idx+1] = yFactor - 80; // offset down so pillars sit behind planets vertically
+          // vertex.z: keep close to baseZ but add tiny ripple for depth
+          arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.07 + iy*0.03) * 6;
+          vi++;
+        }
+      }
+      posAttr.needsUpdate = true;
+      // slowly modulate material opacity with RMS for liveliness
+      if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g=>g.id===currentGenreId) ? 0.06 : 0);
+      // slight rotation wobble to accent weave
+      mesh.rotation.z = Math.sin(t*0.23 + pIdx*0.5) * 0.015;
+    });
+  } catch(e){ /* safe */ }
 
   renderer.render(scene, camera);
 }
@@ -672,6 +794,7 @@ animate();
 window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+  // recompute horizontal ribbon width and sprite scale
   if (RIBBON && RIBBON.width){
     const width = (2 * Math.tan(camera.fov * Math.PI/180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
     RIBBON.width = width;
@@ -683,6 +806,10 @@ window.addEventListener('resize', ()=>{
     }
     RIBBON.geometry.attributes.position.needsUpdate = true;
   }
+  // update pillar textures anisotropy if needed
+  PILLAR_RIBBONS.forEach(p => {
+    try { if (p.mesh && p.mesh.material && p.mesh.material.map) p.mesh.material.map.needsUpdate = true; } catch(e){}
+  });
 });
 
 /* ---------- Startup ---------- */
@@ -690,10 +817,5 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-/* ---------- NOTE ----------
-   Removed: overlay/fade logic and auto-play fade removal on load.
-   UI is shown immediately and renderer is transparent so page background shows.
-*/
-
 /* ---------- Sanity log ---------- */
-console.log('app.js loaded — ribbon and audio-reactive features enabled (fade removed).');
+console.log('app.js loaded — horizontal ribbon + 7 vertical weaving pillar ribbons enabled.');
