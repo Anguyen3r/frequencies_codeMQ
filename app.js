@@ -8,7 +8,7 @@ const FIREBASE_CONFIG = null; // optional firebase config
 
 /* ---------- Small Helpers ---------- */
 function toCssHex(n){ return '#'+('000000'+(n.toString(16))).slice(-6); }
-function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
+function toCssRgba(hex, a=1){ const r=(hex>>16)&255, g=(hex>>8)&255, b=(hex)&255; return `rgba(${r},${g},${b},${a})`; }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 /* ---------- Persistence (Firebase optional / fallback localStorage) ---------- */
@@ -74,13 +74,13 @@ if (legendWrap){
 
 /* ---------- Genres & Colors (7 genres, matches 7 bubbles) ---------- */
 const GENRES = [
-  { id:'hard-techno', name:'Hard Techno', color:0xff2b6a },
-  { id:'techno', name:'Techno', color:0xff4f79 },
-  { id:'house', name:'House', color:0xffbf5f },
-  { id:'dnb', name:'Drum & Bass', color:0x5fff85 },
-  { id:'electronic', name:'Electronic / Dance', color:0x9f5fff },
-  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },
-  { id:'pop', name:'Pop', color:0xffffff }
+  { id:'hard-techno', name:'Hard Techno', color:0xff2b6a },       // pink-red
+  { id:'techno', name:'Techno', color:0xff4f79 },                // purple (kept)
+  { id:'house', name:'House', color:0xffbf5f },                  // orange
+  { id:'dnb', name:'Drum & Bass', color:0x5fff85 },             // green
+  { id:'electronic', name:'Electronic / Dance', color:0x153fbf },// sapphire (darker)
+  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },              // cyan
+  { id:'pop', name:'Pop', color:0xff7fbf }                       // pink (changed from white for clarity)
 ];
 // populate select/legend if present
 if (genreSelect && legendList){
@@ -170,7 +170,6 @@ function generateStarTexture(){
   ctx.fillStyle = g; ctx.fillRect(0,0,s,s);
   return new THREE.CanvasTexture(c);
 }
-function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 
 /* ---------- ORB cluster (planets/bubbles) ---------- */
 const CLUSTER_RADIUS = 420;
@@ -227,8 +226,8 @@ GENRES.forEach((g, idx) => {
   const baseAngle = (idx / GENRES.length) * Math.PI*2;
   container.userData.baseAngle = baseAngle;
   container.userData.idx = idx;
-  // initial placement in a ring
-  container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, Math.sin(baseAngle)*CLUSTER_RADIUS*0.6, -idx*6);
+  // initial placement in a ring, near the horizontal ribbon center (-10)
+  container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, -10 + Math.sin(baseAngle) * (CLUSTER_RADIUS*0.06), -idx*6);
 
   const tilt = { x:(Math.random()*0.9 - 0.45)*Math.PI/2, y:(Math.random()*0.9 - 0.45)*Math.PI/2, z:(Math.random()*0.6 - 0.3)*Math.PI/6 };
   const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random()*160), 9.5, (idx % 2 === 0));
@@ -384,13 +383,13 @@ function initRibbon(){
   RIBBON.geometry = geometry;
   RIBBON.points = POINTS;
   RIBBON.width = width;
-  RIBBON.baseY = 0;
+  RIBBON.baseY = -10; // horizontal wave baseline used for centering orbits/pillars
   RIBBON.currentGenre = null;
 }
 initRibbon();
 
-/* ---------- Vertical Pillar Ribbons (one per genre/orb) ---------- */
-/* Plan:
+/* ---------- Vertical Pillar Ribbons (one per genre/orb) ----------
+   Plan:
    - create a tall plane for each genre behind its orb
    - plane has gradient texture derived from genre color (soft translucent)
    - plane geometry subdivided horizontally to allow weaving (per-vertex x displacement)
@@ -436,8 +435,8 @@ function initPillarRibbons(){
     const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
     // material with gradient texture based on genre color — translucent, additive
     const tex = makePillarTexture(g.color, 1024, 192);
-    tex.minFilter = THREE.LinearMipMapLinearFilter;
-    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1);
+    try { tex.minFilter = THREE.LinearMipMapLinearFilter; } catch(e){}
+    try { tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1); } catch(e){}
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true, opacity:0.20, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false;
@@ -445,7 +444,7 @@ function initPillarRibbons(){
     mesh.rotation.x = -Math.PI/2 + 0.02; // stand up (x axis)
     mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1); // slight slant to left/right for weaving feel
     // place behind the orbs along z and at roughly same x (we'll sync in animate)
-    mesh.position.set(0, -80, -180 - idx*6);
+    mesh.position.set(0, RIBBON.baseY - 80, -180 - idx*6);
     mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
     scene.add(mesh);
     PILLAR_RIBBONS.push({ mesh, geo, mat, idx, baseX:0 });
@@ -485,10 +484,19 @@ async function playGenreAudio(genreId){
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.6;
     }
-    // also tint corresponding pillar more strongly
+    // reset pillar opacities, then highlight selected pillar
+    PILLAR_RIBBONS.forEach(p => { if (p && p.mesh && p.mesh.material) p.mesh.material.opacity = 0.18; });
     const foundIdx = GENRES.findIndex(x=>x.id===genreId);
     if (PILLAR_RIBBONS[foundIdx]) {
-      PILLAR_RIBBONS[foundIdx].mesh.material.opacity = 0.34;
+      PILLAR_RIBBONS[foundIdx].mesh.material.opacity = 0.38;
+    }
+    // update legend UI tint if present
+    if (legendList){
+      // subtle visual feedback: add active class or inline style change
+      Array.from(legendList.children).forEach((li, i) => {
+        li.style.outline = (i === foundIdx) ? '2px solid rgba(255,255,255,0.06)' : 'none';
+        li.style.transform = (i === foundIdx) ? 'translateY(-2px)' : 'translateY(0)';
+      });
     }
   }
 }
@@ -673,18 +681,21 @@ function animate(){
   camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
   camera.lookAt(0,0,0);
 
-  // cluster / bubbles orbit
+  // cluster / bubbles orbit — more centered uniform orbits around the horizontal ribbon baseline
   const clusterSpeed = 0.14 + bass * 0.4;
   GENRES.forEach((g, idx) => {
     const o = ORB_MESHES[g.id];
     if (!o) return;
     const phaseOffset = o.baseAngle;
-    const angle = t * clusterSpeed + phaseOffset * (0.6 + idx*0.08);
-    const ex = CLUSTER_RADIUS * (1 + Math.sin(idx + t*0.12)*0.02);
-    const ey = CLUSTER_RADIUS * 0.6 * (1 + Math.cos(idx*0.7 + t*0.11)*0.02);
-    o.container.position.x = Math.cos(angle) * ex + (idx - (GENRES.length-1)/2) * Math.sin(t*0.03)*2;
-    o.container.position.y = Math.sin(angle * 1.02 + idx*0.31) * ey + Math.cos(idx*0.5 + t*0.2)*4;
-    o.container.position.z = Math.sin(t*(0.55 + idx*0.02))*10 - idx*4;
+    // angle steers each orb around center; small idx offsets keep separation but keep center uniform
+    const angle = t * clusterSpeed + phaseOffset + idx * 0.05;
+    // maintain uniform radius but add small breathing to feel alive
+    const radius = CLUSTER_RADIUS * 0.88 + Math.sin(t*0.13 + idx) * 18;
+    // keep y centered around ribbon.baseY with modest vertical orbit amplitude
+    const vertAmp = CLUSTER_RADIUS * 0.12;
+    o.container.position.x = Math.cos(angle) * radius + Math.sin(t*0.03 + idx) * 6;
+    o.container.position.y = RIBBON.baseY + Math.sin(angle * 1.04 + idx * 0.6) * vertAmp + Math.cos(idx*0.2 + t*0.2) * 2;
+    o.container.position.z = -30 + Math.sin(t*(0.55 + idx*0.02))*8 - idx*4; // pull forward slightly (-30) so ribbons visually sit behind
 
     o.core.rotation.y += 0.002 + idx*0.0003;
     o.core.rotation.x += 0.0011;
@@ -696,12 +707,15 @@ function animate(){
 
     o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
 
-    // sync corresponding pillar base X to orb X (pillars follow bubbles)
+    // sync corresponding pillar base X to orb X (pillars follow bubbles), z depth behind orb
     const pillar = PILLAR_RIBBONS[idx];
     if (pillar){
-      pillar.mesh.userData.baseX = o.container.position.x;
-      // small Z sync subtle depth parallax
-      pillar.mesh.position.z = o.container.position.z - 50 - idx*2;
+      const targetX = o.container.position.x;
+      pillar.mesh.userData.baseX = targetX;
+      // small Z sync subtle depth parallax (pillars behind)
+      pillar.mesh.position.z = o.container.position.z - 80 - idx*2;
+      // vertical placement align with RIBBON baseline but slightly lower
+      pillar.mesh.position.y = RIBBON.baseY - 80;
     }
   });
 
@@ -719,7 +733,7 @@ function animate(){
           const amplitude = 120 + (currentGenreId ? 80 : 0);
           const y = v * amplitude * (0.7 + Math.sin(i*0.2 + t*0.7) * 0.14);
           const idx = i*3;
-          pos[idx+1] = y + -10;
+          pos[idx+1] = y + RIBBON.baseY;
           pos[idx+2] = -120 + Math.sin(t*0.3 + i*0.06)*6;
         }
         const amps = audioController.getAmps();
@@ -728,7 +742,7 @@ function animate(){
       } else {
         for (let i=0;i<pts;i++){
           const idx = i*3;
-          pos[idx+1] = Math.sin(i*0.12 + t*0.9) * 14 + Math.sin(i*0.09 + t*0.3)*6 - 8;
+          pos[idx+1] = Math.sin(i*0.12 + t*0.9) * 14 + Math.sin(i*0.09 + t*0.3)*6 + RIBBON.baseY;
           pos[idx+2] = -120 + Math.sin(t*0.12 + i*0.03)*4;
         }
         if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = 0.45;
@@ -740,18 +754,18 @@ function animate(){
   /* --- Pillar ribbon weave update --- */
   try {
     // global weave settings
-    const globalAmp = 22 + bass * 140; // amplitude grows with bass
+    const globalAmp = 18 + bass * 120; // amplitude grows with bass (tuned down)
     const freq = 0.9 + (rms * 6.0);
     PILLAR_RIBBONS.forEach((p, pIdx) => {
       const mesh = p.mesh;
       const geo = mesh.geometry;
-      // We'll modify geometry.vertices (buffer) positions.x for a horizontal weave across vertical segments
       const posAttr = geo.attributes.position;
       const arr = posAttr.array;
-      const itemSize = posAttr.itemSize || 3;
       // geometry parameters as created: plane centered at (0,0) with width along X and height along Y
       const wSegs = mesh.userData.wSegs || 10;
       const hSegs = mesh.userData.hSegs || 48;
+      const width = mesh.userData.width || 160;
+      const height = mesh.userData.height || 1200;
       // base X offset (follows its orb)
       const baseX = mesh.userData.baseX || mesh.position.x;
       const baseZ = mesh.userData.baseZ || mesh.position.z;
@@ -760,29 +774,26 @@ function animate(){
       // loop through vertices: grid (wSegs+1) x (hSegs+1)
       let vi = 0;
       for (let iy = 0; iy <= hSegs; iy++){
-        // y portion from -height/2..height/2
         const vNorm = iy / hSegs;
-        const yFactor = (vNorm - 0.5) * mesh.userData.height;
+        const yFactor = (vNorm - 0.5) * height;
         for (let ix = 0; ix <= wSegs; ix++){
           const idx = vi * 3; // x,y,z
-          // compute horizontal offset for this vertex based on vertical position and time
-          const xBaseLocal = (-mesh.userData.width/2) + (ix / wSegs) * mesh.userData.width;
-          // displacement: combination of global sin + per-pillar phase + slight per-ix staggering
-          const disp = Math.sin((vNorm * Math.PI * 4.0) + (t * freq) + phase + ix*0.18) * (globalAmp * (0.18 + (ix/wSegs)*0.6));
-          // place vertex.x to baseX + xBaseLocal + disp * small factor (keeps weaving subtle)
-          arr[idx] = baseX + xBaseLocal + disp * 0.012; // small multiplier tuned to world scale
-          // vertex.y: vertical location — preserve base layout (plane geometry initial y is in arr[idx+1])
-          arr[idx+1] = yFactor - 80; // offset down so pillars sit behind planets vertically
+          const xBaseLocal = (-width/2) + (ix / wSegs) * width;
+          const disp = Math.sin((vNorm * Math.PI * 3.0) + (t * freq) + phase + ix*0.16) * (globalAmp * (0.12 + (ix/wSegs)*0.6));
+          // horizontal weave: baseX + local + disp scaled
+          arr[idx] = baseX + xBaseLocal + disp * 0.015; // small multiplier tuned to world scale
+          // vertex.y: vertical location — offset so pillars sit behind planets
+          arr[idx+1] = yFactor - 80;
           // vertex.z: keep close to baseZ but add tiny ripple for depth
-          arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.07 + iy*0.03) * 6;
+          arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.06 + iy*0.02) * 6;
           vi++;
         }
       }
       posAttr.needsUpdate = true;
       // slowly modulate material opacity with RMS for liveliness
-      if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g=>g.id===currentGenreId) ? 0.06 : 0);
+      if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.44, rms * 0.7) + (pIdx === GENRES.findIndex(g=>g.id===currentGenreId) ? 0.06 : 0);
       // slight rotation wobble to accent weave
-      mesh.rotation.z = Math.sin(t*0.23 + pIdx*0.5) * 0.015;
+      mesh.rotation.z = Math.sin(t*0.22 + pIdx*0.5) * 0.015;
     });
   } catch(e){ /* safe */ }
 
