@@ -1,6 +1,6 @@
 /* app.js
-   Full updated app.js — fade/black-screen removed; everything else preserved.
-   Adds 7 vertical weaving pillar ribbons (one per genre/planet) while keeping horizontal ribbon.
+   Full integrated app.js — smoothing for horizontal ribbon, diagonal elliptical orbit,
+   7 genres/bubbles, pillars weave follow, UI color sync. Based on your working base.
 */
 
 /* ---------- CONFIG ---------- */
@@ -8,7 +8,7 @@ const FIREBASE_CONFIG = null; // optional firebase config
 
 /* ---------- Small Helpers ---------- */
 function toCssHex(n){ return '#'+('000000'+(n.toString(16))).slice(-6); }
-function toCssRgba(hex, a=1){ const r=(hex>>16)&255, g=(hex>>8)&255, b=(hex)&255; return `rgba(${r},${g},${b},${a})`; }
+function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 /* ---------- Persistence (Firebase optional / fallback localStorage) ---------- */
@@ -74,22 +74,27 @@ if (legendWrap){
 
 /* ---------- Genres & Colors (7 genres, matches 7 bubbles) ---------- */
 const GENRES = [
-  { id:'hard-techno', name:'Hard Techno', color:0xff2b6a },       // pink-red
-  { id:'techno', name:'Techno', color:0xff4f79 },                // purple (kept)
-  { id:'house', name:'House', color:0xffbf5f },                  // orange
-  { id:'dnb', name:'Drum & Bass', color:0x5fff85 },             // green
-  { id:'electronic', name:'Electronic / Dance', color:0x153fbf },// sapphire (darker)
-  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },              // cyan
-  { id:'pop', name:'Pop', color:0xff7fbf }                       // pink (changed from white for clarity)
+  { id:'hard-techno', name:'Hard Techno', color:0xff2b6a },   // red/pink
+  { id:'techno', name:'Techno', color:0x8a5fff },            // purple (adjusted slightly for contrast)
+  { id:'house', name:'House', color:0xff9b3f },              // orange
+  { id:'dnb', name:'Drum & Bass', color:0x4cff7b },         // green
+  { id:'electronic', name:'Electronic / Dance', color:0x3f7bff }, // sapphire/blue
+  { id:'dubstep', name:'Dubstep', color:0x5fc9ff },          // cyan
+  { id:'pop', name:'Pop', color:0xff89d9 }                   // pink
 ];
 // populate select/legend if present
 if (genreSelect && legendList){
+  legendList.innerHTML = ''; // clear and repopulate
   GENRES.forEach(g=>{
     const opt = document.createElement('option'); opt.value=g.id; opt.textContent=g.name; genreSelect.appendChild(opt);
-    const li = document.createElement('li'); li.textContent = g.name;
-    li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="swatch" style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;vertical-align:middle;background:${toCssHex(g.color)}"></span>${g.name}`;
+    li.style.padding = '6px 10px';
+    li.style.marginBottom = '6px';
+    li.style.borderRadius = '8px';
+    li.style.background = `linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`;
     const lum = (((g.color>>16)&255)*299 + (((g.color>>8)&255)*587) + ((g.color&255)*114))/1000;
-    li.style.color = lum >= 128 ? '#000' : '#fff';
+    li.style.color = lum >= 140 ? '#000' : '#fff';
     legendList.appendChild(li);
   });
   genreSelect.addEventListener('change', ()=> computeAndRenderTop());
@@ -170,6 +175,7 @@ function generateStarTexture(){
   ctx.fillStyle = g; ctx.fillRect(0,0,s,s);
   return new THREE.CanvasTexture(c);
 }
+function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
 
 /* ---------- ORB cluster (planets/bubbles) ---------- */
 const CLUSTER_RADIUS = 420;
@@ -226,8 +232,8 @@ GENRES.forEach((g, idx) => {
   const baseAngle = (idx / GENRES.length) * Math.PI*2;
   container.userData.baseAngle = baseAngle;
   container.userData.idx = idx;
-  // initial placement in a ring, near the horizontal ribbon center (-10)
-  container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, -10 + Math.sin(baseAngle) * (CLUSTER_RADIUS*0.06), -idx*6);
+  // initial placement in a ring (will be animated)
+  container.position.set(Math.cos(baseAngle)*CLUSTER_RADIUS, Math.sin(baseAngle)*CLUSTER_RADIUS*0.6, -idx*6);
 
   const tilt = { x:(Math.random()*0.9 - 0.45)*Math.PI/2, y:(Math.random()*0.9 - 0.45)*Math.PI/2, z:(Math.random()*0.6 - 0.3)*Math.PI/6 };
   const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random()*160), 9.5, (idx % 2 === 0));
@@ -336,10 +342,11 @@ const audioController = (function(){
 /* ---------- Horizontal Ribbon: energy trail that uses time-domain waveform ---------- */
 const RIBBON = {};
 function initRibbon(){
-  const POINTS = 256;
+  const POINTS = 512; // increased resolution for smoother curve
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(POINTS * 3);
   const colors = new Float32Array(POINTS * 3);
+
   function worldWidthAtZ(z) {
     const vFOV = camera.fov * Math.PI / 180;
     const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
@@ -350,13 +357,13 @@ function initRibbon(){
   for (let i=0;i<POINTS;i++){
     const x = -width/2 + (i/(POINTS-1)) * width;
     positions[i*3] = x;
-    positions[i*3+1] = Math.sin(i/6) * 10;
+    positions[i*3+1] = Math.sin(i/6) * 6;
     positions[i*3+2] = -120;
     colors[i*3] = 0.8; colors[i*3+1] = 0.7; colors[i*3+2] = 1.0;
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
+  const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, linewidth: 2 });
   const line = new THREE.Line(geometry, mat);
   line.frustumCulled = false;
   scene.add(line);
@@ -378,18 +385,24 @@ function initRibbon(){
   sprite.position.set(0, -8, -140);
   scene.add(sprite);
 
+  // smoothing buffers for nice interpolation
+  const prevY = new Float32Array(POINTS);
+  for (let i=0;i<POINTS;i++) prevY[i] = positions[i*3+1];
+
   RIBBON.line = line;
   RIBBON.sprite = sprite;
   RIBBON.geometry = geometry;
   RIBBON.points = POINTS;
   RIBBON.width = width;
-  RIBBON.baseY = -10; // horizontal wave baseline used for centering orbits/pillars
+  RIBBON.baseY = 0;
   RIBBON.currentGenre = null;
+  RIBBON._prevY = prevY;
+  RIBBON.smoothAlpha = 0.18; // lerp factor: lower = smoother/slower
 }
 initRibbon();
 
-/* ---------- Vertical Pillar Ribbons (one per genre/orb) ----------
-   Plan:
+/* ---------- Vertical Pillar Ribbons (one per genre/orb) ---------- */
+/* Plan:
    - create a tall plane for each genre behind its orb
    - plane has gradient texture derived from genre color (soft translucent)
    - plane geometry subdivided horizontally to allow weaving (per-vertex x displacement)
@@ -435,8 +448,8 @@ function initPillarRibbons(){
     const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
     // material with gradient texture based on genre color — translucent, additive
     const tex = makePillarTexture(g.color, 1024, 192);
-    try { tex.minFilter = THREE.LinearMipMapLinearFilter; } catch(e){}
-    try { tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1); } catch(e){}
+    tex.minFilter = THREE.LinearMipMapLinearFilter;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1);
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true, opacity:0.20, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false;
@@ -444,7 +457,7 @@ function initPillarRibbons(){
     mesh.rotation.x = -Math.PI/2 + 0.02; // stand up (x axis)
     mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1); // slight slant to left/right for weaving feel
     // place behind the orbs along z and at roughly same x (we'll sync in animate)
-    mesh.position.set(0, RIBBON.baseY - 80, -180 - idx*6);
+    mesh.position.set(0, -80, -180 - idx*6);
     mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
     scene.add(mesh);
     PILLAR_RIBBONS.push({ mesh, geo, mat, idx, baseX:0 });
@@ -484,18 +497,16 @@ async function playGenreAudio(genreId){
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.6;
     }
-    // reset pillar opacities, then highlight selected pillar
-    PILLAR_RIBBONS.forEach(p => { if (p && p.mesh && p.mesh.material) p.mesh.material.opacity = 0.18; });
+    // also tint corresponding pillar more strongly
     const foundIdx = GENRES.findIndex(x=>x.id===genreId);
-    if (PILLAR_RIBBONS[foundIdx]) {
-      PILLAR_RIBBONS[foundIdx].mesh.material.opacity = 0.38;
-    }
-    // update legend UI tint if present
+    PILLAR_RIBBONS.forEach((p, i)=> {
+      p.mesh.material.opacity = (i === foundIdx) ? 0.34 : 0.16;
+    });
+    // highlight legend entry if present
     if (legendList){
-      // subtle visual feedback: add active class or inline style change
       Array.from(legendList.children).forEach((li, i) => {
-        li.style.outline = (i === foundIdx) ? '2px solid rgba(255,255,255,0.06)' : 'none';
-        li.style.transform = (i === foundIdx) ? 'translateY(-2px)' : 'translateY(0)';
+        li.style.boxShadow = (i === foundIdx) ? '0 6px 18px rgba(0,0,0,0.45)' : 'none';
+        li.style.transform = (i === foundIdx) ? 'translateY(-2px)' : 'none';
       });
     }
   }
@@ -681,21 +692,48 @@ function animate(){
   camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
   camera.lookAt(0,0,0);
 
-  // cluster / bubbles orbit — more centered uniform orbits around the horizontal ribbon baseline
-  const clusterSpeed = 0.14 + bass * 0.4;
+  // cluster / bubbles orbit: diagonal elliptical, more center-uniform
+  const clusterSpeed = 0.12 + bass * 0.38;
+  // tilt the major axis to diagonal: rotate ellipse by -45deg (top-left to bottom-right)
+  const tiltAngle = -Math.PI / 4;
+  const cosT = Math.cos(tiltAngle), sinT = Math.sin(tiltAngle);
+  // optionally push the whole cluster slightly to the right if leftPanel exists so orbs avoid left UI
+  let centerOffsetX = 0, centerOffsetY = 0;
+  if (leftPanel && leftPanel.getBoundingClientRect){
+    try {
+      const lr = leftPanel.getBoundingClientRect();
+      // convert pixel offset to world-like offset by a simple heuristic
+      centerOffsetX = (lr.width / Math.max(window.innerWidth, 600)) * (CLUSTER_RADIUS * 0.85);
+      centerOffsetY = -Math.min(120, lr.height * 0.08);
+    } catch(e){}
+  }
   GENRES.forEach((g, idx) => {
     const o = ORB_MESHES[g.id];
     if (!o) return;
     const phaseOffset = o.baseAngle;
-    // angle steers each orb around center; small idx offsets keep separation but keep center uniform
-    const angle = t * clusterSpeed + phaseOffset + idx * 0.05;
-    // maintain uniform radius but add small breathing to feel alive
-    const radius = CLUSTER_RADIUS * 0.88 + Math.sin(t*0.13 + idx) * 18;
-    // keep y centered around ribbon.baseY with modest vertical orbit amplitude
-    const vertAmp = CLUSTER_RADIUS * 0.12;
-    o.container.position.x = Math.cos(angle) * radius + Math.sin(t*0.03 + idx) * 6;
-    o.container.position.y = RIBBON.baseY + Math.sin(angle * 1.04 + idx * 0.6) * vertAmp + Math.cos(idx*0.2 + t*0.2) * 2;
-    o.container.position.z = -30 + Math.sin(t*(0.55 + idx*0.02))*8 - idx*4; // pull forward slightly (-30) so ribbons visually sit behind
+    const angle = t * clusterSpeed + phaseOffset * (0.6 + idx*0.08);
+
+    // elliptical radii — vary slightly per-index for organic look
+    const ex = CLUSTER_RADIUS * (0.86 + Math.sin(idx + t*0.12)*0.02); // major
+    const ey = CLUSTER_RADIUS * 0.48 * (0.9 + Math.cos(idx*0.7 + t*0.11)*0.02); // minor - more compact vertically
+
+    // raw ellipse coords (centered at origin)
+    const rawX = Math.cos(angle) * ex;
+    const rawY = Math.sin(angle) * ey;
+
+    // rotate ellipse to diagonal
+    const rx = rawX * cosT - rawY * sinT;
+    const ry = rawX * sinT + rawY * cosT;
+
+    // subtle per-orb jitter and index-based offset to avoid perfect symmetry
+    const jitterX = Math.sin(t*0.27 + idx*0.64) * 6;
+    const jitterY = Math.cos(t*0.31 + idx*0.41) * 3;
+
+    // apply center offset (so cluster doesn't go behind left UI)
+    o.container.position.x = rx + centerOffsetX + jitterX + (idx - (GENRES.length-1)/2) * Math.sin(t*0.02) * 0.7;
+    o.container.position.y = ry + centerOffsetY + jitterY + Math.cos(idx*0.5 + t*0.2)*4;
+    // keep z shallow range so orbs don't disappear behind deep elements; controlled per-index for depth
+    o.container.position.z = Math.sin(t*(0.45 + idx*0.02))*8 - idx*3;
 
     o.core.rotation.y += 0.002 + idx*0.0003;
     o.core.rotation.x += 0.0011;
@@ -707,15 +745,12 @@ function animate(){
 
     o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
 
-    // sync corresponding pillar base X to orb X (pillars follow bubbles), z depth behind orb
+    // sync corresponding pillar base X to orb X (pillars follow bubbles)
     const pillar = PILLAR_RIBBONS[idx];
     if (pillar){
-      const targetX = o.container.position.x;
-      pillar.mesh.userData.baseX = targetX;
-      // small Z sync subtle depth parallax (pillars behind)
-      pillar.mesh.position.z = o.container.position.z - 80 - idx*2;
-      // vertical placement align with RIBBON baseline but slightly lower
-      pillar.mesh.position.y = RIBBON.baseY - 80;
+      pillar.mesh.userData.baseX = o.container.position.x;
+      // small Z sync subtle depth parallax
+      pillar.mesh.position.z = o.container.position.z - 50 - idx*2;
     }
   });
 
@@ -725,24 +760,39 @@ function animate(){
       const pos = RIBBON.geometry.attributes.position.array;
       const pts = RIBBON.points;
       const timeData = audioController.getTimeDomain();
+      const prevY = RIBBON._prevY;
+      const alpha = RIBBON.smoothAlpha; // lerp factor
       if (timeData && timeData.length > 0){
-        const step = Math.floor(timeData.length / pts) || 1;
+        // map time-domain smoothly across pts using interpolation step and smoothing
+        const tdLen = timeData.length;
         for (let i=0;i<pts;i++){
-          const td = timeData[Math.min(timeData.length-1, i*step)];
+          // sample fractional index into timeData for smoother mapping
+          const f = (i / (pts-1)) * (tdLen - 1);
+          const i0 = Math.floor(f), i1 = Math.min(tdLen-1, i0+1);
+          const frac = f - i0;
+          const td0 = timeData[i0], td1 = timeData[i1];
+          const td = td0 * (1 - frac) + td1 * frac; // linear interp
           const v = (td / 128.0) - 1.0; // -1..1
           const amplitude = 120 + (currentGenreId ? 80 : 0);
-          const y = v * amplitude * (0.7 + Math.sin(i*0.2 + t*0.7) * 0.14);
+          const baseOsc = Math.sin(i*0.09 + t*0.7) * 0.14;
+          const targetY = v * amplitude * (0.7 + baseOsc);
           const idx = i*3;
-          pos[idx+1] = y + RIBBON.baseY;
-          pos[idx+2] = -120 + Math.sin(t*0.3 + i*0.06)*6;
+          // lerp previous y to target for smoothing
+          prevY[i] = prevY[i] * (1 - alpha) + targetY * alpha;
+          pos[idx+1] = prevY[i] - 10;
+          // subtle smooth z wobble
+          pos[idx+2] = -120 + Math.sin(t*0.28 + i*0.04) * 5;
         }
         const amps = audioController.getAmps();
-        const brightness = amps ? (0.3 + amps.rms*1.4) : 0.4;
-        if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.25 + brightness);
+        const brightness = amps ? (0.28 + amps.rms*1.4) : 0.36;
+        if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.22 + brightness);
       } else {
+        // idle motion with smoothing (lerp toward target idle wave)
         for (let i=0;i<pts;i++){
           const idx = i*3;
-          pos[idx+1] = Math.sin(i*0.12 + t*0.9) * 14 + Math.sin(i*0.09 + t*0.3)*6 + RIBBON.baseY;
+          const targetY = (Math.sin(i*0.08 + t*0.9) * 12 + Math.sin(i*0.06 + t*0.3)*6 - 8);
+          prevY[i] = prevY[i] * (1 - alpha) + targetY * alpha;
+          pos[idx+1] = prevY[i];
           pos[idx+2] = -120 + Math.sin(t*0.12 + i*0.03)*4;
         }
         if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = 0.45;
@@ -754,46 +804,35 @@ function animate(){
   /* --- Pillar ribbon weave update --- */
   try {
     // global weave settings
-    const globalAmp = 18 + bass * 120; // amplitude grows with bass (tuned down)
+    const globalAmp = 22 + bass * 140; // amplitude grows with bass
     const freq = 0.9 + (rms * 6.0);
     PILLAR_RIBBONS.forEach((p, pIdx) => {
       const mesh = p.mesh;
       const geo = mesh.geometry;
       const posAttr = geo.attributes.position;
       const arr = posAttr.array;
-      // geometry parameters as created: plane centered at (0,0) with width along X and height along Y
       const wSegs = mesh.userData.wSegs || 10;
       const hSegs = mesh.userData.hSegs || 48;
-      const width = mesh.userData.width || 160;
-      const height = mesh.userData.height || 1200;
-      // base X offset (follows its orb)
       const baseX = mesh.userData.baseX || mesh.position.x;
       const baseZ = mesh.userData.baseZ || mesh.position.z;
-      // per-pillar phase to stagger weave
       const phase = pIdx * 0.6;
-      // loop through vertices: grid (wSegs+1) x (hSegs+1)
       let vi = 0;
       for (let iy = 0; iy <= hSegs; iy++){
         const vNorm = iy / hSegs;
-        const yFactor = (vNorm - 0.5) * height;
+        const yFactor = (vNorm - 0.5) * mesh.userData.height;
         for (let ix = 0; ix <= wSegs; ix++){
           const idx = vi * 3; // x,y,z
-          const xBaseLocal = (-width/2) + (ix / wSegs) * width;
-          const disp = Math.sin((vNorm * Math.PI * 3.0) + (t * freq) + phase + ix*0.16) * (globalAmp * (0.12 + (ix/wSegs)*0.6));
-          // horizontal weave: baseX + local + disp scaled
-          arr[idx] = baseX + xBaseLocal + disp * 0.015; // small multiplier tuned to world scale
-          // vertex.y: vertical location — offset so pillars sit behind planets
+          const xBaseLocal = (-mesh.userData.width/2) + (ix / wSegs) * mesh.userData.width;
+          const disp = Math.sin((vNorm * Math.PI * 4.0) + (t * freq) + phase + ix*0.18) * (globalAmp * (0.18 + (ix/wSegs)*0.6));
+          arr[idx] = baseX + xBaseLocal + disp * 0.012;
           arr[idx+1] = yFactor - 80;
-          // vertex.z: keep close to baseZ but add tiny ripple for depth
-          arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.06 + iy*0.02) * 6;
+          arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.07 + iy*0.03) * 6;
           vi++;
         }
       }
       posAttr.needsUpdate = true;
-      // slowly modulate material opacity with RMS for liveliness
-      if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.44, rms * 0.7) + (pIdx === GENRES.findIndex(g=>g.id===currentGenreId) ? 0.06 : 0);
-      // slight rotation wobble to accent weave
-      mesh.rotation.z = Math.sin(t*0.22 + pIdx*0.5) * 0.015;
+      if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g=>g.id===currentGenreId) ? 0.06 : 0);
+      mesh.rotation.z = Math.sin(t*0.23 + pIdx*0.5) * 0.015;
     });
   } catch(e){ /* safe */ }
 
@@ -829,4 +868,4 @@ if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
 /* ---------- Sanity log ---------- */
-console.log('app.js loaded — horizontal ribbon + 7 vertical weaving pillar ribbons enabled.');
+console.log('app.js loaded — horizontal ribbon smoothed, diagonal elliptical orbit, 7 vertical weaving pillar ribbons enabled.');
