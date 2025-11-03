@@ -3,56 +3,63 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 /*
-  Full integrated App.js
-  - Uses the exact GENRES you supplied (no substitutions)
-  - Top-right UI lists all genres and shows count
-  - Clicking a genre updates Spotify embed, ribbon color, pillar emphasis, orb highlight
-  - Local audio upload / URL still supported (for analysis/visuals)
+  Full, expanded App.js
+  - 7 correct genres: Hard Techno, Techno, Drum & Bass, Dubstep, House, Electronic/Dance, Pop/International
+  - Spotify embed per-genre (top-playlist links included as examples)
+  - Local audio file / URL loader (WebAudio analyser) for waveform-driven visuals
+  - Full Three.js scene: orbs, stardust rings, aurora sprites, horizontal ribbon, pillar ribbons
+  - UI: Now Playing panel (spotify/embed or local audio), file/url loader, Genre panel showing 7 items
+  - All logic explicitly written and commented for easy editing
 */
 
+/* ------------------------- CONFIG / GENRES ------------------------- */
 const GENRES = [
   { id: "hard-techno", name: "Hard Techno", color: 0xff2b6a, spotify: "https://open.spotify.com/playlist/37i9dQZF1DWVY4eLfA3XFQ" },
   { id: "techno", name: "Techno", color: 0x8a5fff, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX6J5NfMJS675" },
-  { id: "house", name: "House", color: 0xff9b3f, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX2TRYkJECvfC" },
   { id: "dnb", name: "Drum & Bass", color: 0x4cff7b, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX8ymr6UES7vc" },
-  { id: "electronic", name: "Electronic / Dance", color: 0x3f7bff, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX4dyzvuaRJ0n" },
   { id: "dubstep", name: "Dubstep", color: 0x5fc9ff, spotify: "https://open.spotify.com/playlist/37i9dQZF1DWYWddJiPzbvb" },
-  { id: "pop", name: "Pop", color: 0xff89d9, spotify: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" }
+  { id: "house", name: "House", color: 0xff9b3f, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX2TRYkJECvfC" },
+  { id: "electronic", name: "Electronic / Dance", color: 0x3f7bff, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX4dyzvuaRJ0n" },
+  { id: "pop", name: "Pop / International", color: 0xff89d9, spotify: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" }
 ];
 
-function toCssHex(n) {
-  return "#" + ("000000" + (n.toString(16))).slice(-6);
-}
+function toCssHex(n) { return "#" + ("000000" + (n.toString(16))).slice(-6); }
 function toCssRgba(hex, a = 1) {
   const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255;
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/* ------------------------- React component ------------------------- */
 export default function App() {
+  // DOM refs
   const mountRef = useRef(null);
   const spotifyRef = useRef(null);
-  const audioElementRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const analyserRef = useRef(null);
 
-  const [selectedGenre, setSelectedGenre] = useState(GENRES[1].id); // default 'techno'
+  // state
+  const [selectedGenre, setSelectedGenre] = useState(GENRES[1].id); // default to 'techno'
   const [mounted, setMounted] = useState(false);
 
-  // three refs
+  // Three.js & audio refs
   const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const orbsRef = useRef({});
   const pillarsRef = useRef([]);
   const ribbonRef = useRef(null);
-  const animRef = useRef(null);
+  const analyserRef = useRef(null);
+  const audioElRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const animRequestRef = useRef(null);
 
+  /* ------------------------- Lifecycle: init Three + visuals ------------------------- */
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
-    // SCENE + CAMERA + RENDERER
+    /* ---------- Scene / Camera / Renderer ---------- */
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x00000c, 0.00009);
+    sceneRef.current = scene;
 
     const CAMERA_Z = 850;
     const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 10000);
@@ -70,89 +77,97 @@ export default function App() {
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // LIGHTS
+    // lights
     const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
     const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(10, 20, 10); scene.add(dir);
 
-    // STARS & DUST
-    function makeStarLayer(count, spreadX = 5000, spreadY = 3000, spreadZ = 5000, size = 1.2, opacity = 0.9) {
+    /* ---------- Utilities: tiny procedural textures ---------- */
+    function generateGlowTexture(colorHex) {
+      const size = 256;
+      const c = document.createElement("canvas"); c.width = c.height = size;
+      const ctx = c.getContext("2d");
+      const grad = ctx.createRadialGradient(size/2, size/2, 4, size/2, size/2, size/2);
+      grad.addColorStop(0, "rgba(255,255,255,1)");
+      grad.addColorStop(0.18, "rgba(255,255,255,0.9)");
+      grad.addColorStop(0.42, toCssRgba(colorHex, 0.35));
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    function generateStarTexture() {
+      const s = 64; const c = document.createElement("canvas"); c.width = c.height = s; const ctx = c.getContext("2d");
+      const g = ctx.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+      g.addColorStop(0, "rgba(255,255,255,1)");
+      g.addColorStop(0.25, "rgba(255,255,255,0.95)");
+      g.addColorStop(0.6, "rgba(255,255,255,0.2)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+      return new THREE.CanvasTexture(c);
+    }
+
+    /* ---------- Starfields + dust plane ---------- */
+    function makeStarLayer(count, spreadX=5000, spreadY=3000, spreadZ=5000, size=1.2, opacity=0.9){
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(count * 3);
       const phases = new Float32Array(count);
-      for (let i = 0; i < count; i++) {
-        pos[i * 3] = (Math.random() - 0.5) * spreadX;
-        pos[i * 3 + 1] = (Math.random() - 0.5) * spreadY;
-        pos[i * 3 + 2] = -Math.random() * spreadZ - 200;
+      for (let i=0;i<count;i++){
+        pos[i*3] = (Math.random()-0.5) * spreadX;
+        pos[i*3+1] = (Math.random()-0.5) * spreadY;
+        pos[i*3+2] = -Math.random()*spreadZ - 200;
         phases[i] = Math.random() * Math.PI * 2;
       }
       geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
       geo.setAttribute("phase", new THREE.BufferAttribute(phases, 1));
-      const mat = new THREE.PointsMaterial({ color: 0xffffff, size, transparent: true, opacity, depthWrite: false });
-      return { points: new THREE.Points(geo, mat), geo, mat };
+      const mat = new THREE.PointsMaterial({ color: 0xffffff, size, transparent:true, opacity, depthWrite:false });
+      const pts = new THREE.Points(geo, mat);
+      return { points: pts, geo, mat };
     }
     const starsFar = makeStarLayer(1200, 6000, 3600, 6000, 1.1, 0.9);
     const starsNear = makeStarLayer(600, 3500, 2200, 3500, 1.9, 0.6);
     scene.add(starsFar.points, starsNear.points);
 
     const textureLoader = new THREE.TextureLoader();
-    const dustPlane = new THREE.Mesh(new THREE.PlaneGeometry(7000, 3800),
-      new THREE.MeshBasicMaterial({ map: textureLoader.load("https://assets.codepen.io/982762/clouds.png"), transparent: true, opacity: 0.05, depthWrite: false }));
-    dustPlane.position.set(0, 0, -2600);
+    const dustTex = textureLoader.load("https://assets.codepen.io/982762/clouds.png");
+    const dustPlane = new THREE.Mesh(new THREE.PlaneGeometry(7000,3800),
+      new THREE.MeshBasicMaterial({ map: dustTex, transparent:true, opacity:0.05, depthWrite:false })
+    );
+    dustPlane.position.set(0,0,-2600);
     scene.add(dustPlane);
 
-    // small procedural textures
-    function generateGlowTexture(colorHex) {
-      const size = 256;
-      const c = document.createElement("canvas"); c.width = c.height = size;
-      const ctx = c.getContext("2d");
-      const grad = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2);
-      grad.addColorStop(0, "rgba(255,255,255,1)");
-      grad.addColorStop(0.18, "rgba(255,255,255,0.9)");
-      grad.addColorStop(0.42, toCssRgba(colorHex, 0.35));
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
-      return new THREE.CanvasTexture(c);
-    }
-    function generateStarTexture() {
-      const s = 64; const c = document.createElement("canvas"); c.width = c.height = s; const ctx = c.getContext("2d");
-      const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-      g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,0.95)");
-      g.addColorStop(0.6, "rgba(255,255,255,0.2)"); g.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
-      return new THREE.CanvasTexture(c);
-    }
-
-    // ORBS
+    /* ---------- Orbs & stardust rings ---------- */
     const CLUSTER_RADIUS = 420;
     const ORB_GROUP = new THREE.Group(); scene.add(ORB_GROUP);
     orbsRef.current = {};
 
-    function createStardustRing(coreRadius, colorHex, tilt, particleCount = 240, size = 8.5, counterClockwise = true) {
+    function createStardustRing(coreRadius, colorHex, tilt, particleCount=240, size=8.5, counterClockwise=true){
       const group = new THREE.Group();
-      const ringRadius = coreRadius * (1.8 + Math.random() * 0.85);
-      const positions = new Float32Array(particleCount * 3);
+      const ringRadius = coreRadius * (1.8 + Math.random()*0.85);
+      const positions = new Float32Array(particleCount*3);
       const sizes = new Float32Array(particleCount);
-      for (let i = 0; i < particleCount; i++) {
-        const theta = (i / particleCount) * Math.PI * 2;
-        const rr = ringRadius + (Math.random() - 0.5) * (coreRadius * 0.36);
-        positions[i * 3] = Math.cos(theta) * rr;
-        positions[i * 3 + 1] = Math.sin(theta) * rr;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * (coreRadius * 0.5);
-        sizes[i] = (Math.random() * 1.6 + 1.2) * size;
+      for (let i=0;i<particleCount;i++){
+        const theta = (i/particleCount) * Math.PI * 2;
+        const rr = ringRadius + (Math.random()-0.5) * (coreRadius*0.36);
+        positions[i*3] = Math.cos(theta) * rr;
+        positions[i*3+1] = Math.sin(theta) * rr;
+        positions[i*3+2] = (Math.random()-0.5) * (coreRadius*0.5);
+        sizes[i] = (Math.random()*1.6 + 1.2) * size;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       geo.setAttribute("pSize", new THREE.BufferAttribute(sizes, 1));
-      const mat = new THREE.PointsMaterial({ size, map: generateStarTexture(), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+      const mat = new THREE.PointsMaterial({ size, map: generateStarTexture(), transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending });
       mat.color = new THREE.Color(colorHex).multiplyScalar(0.94);
       const pts = new THREE.Points(geo, mat);
       group.add(pts);
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(colorHex), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
-      glow.scale.set(ringRadius * 2.0, ringRadius * 2.0, 1);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(colorHex), transparent:true, opacity:0.12, blending:THREE.AdditiveBlending, depthWrite:false }));
+      glow.scale.set(ringRadius*2.0, ringRadius*2.0, 1);
       group.add(glow);
-      group.rotation.set(tilt.x || 0, tilt.y || 0, tilt.z || 0);
-      const baseSpeed = 0.004 + Math.random() * 0.006;
-      return { group, points: pts, mat, rotationSpeed: baseSpeed * (counterClockwise ? -1 : 1), ringRadius };
+      group.rotation.set(tilt.x||0, tilt.y||0, tilt.z||0);
+      const baseSpeed = 0.004 + Math.random()*0.006;
+      const rotationSpeed = baseSpeed * (counterClockwise ? -1 : 1);
+      return { group, points: pts, mat, rotationSpeed, ringRadius };
     }
 
     GENRES.forEach((g, idx) => {
@@ -172,24 +187,24 @@ export default function App() {
       });
       coreMat.depthWrite = false;
       const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-
-      const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(g.color), color: g.color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
-      rim.scale.set(coreRadius * 9.8, coreRadius * 9.8, 1);
+      const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: generateGlowTexture(g.color), color: g.color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
+      rim.scale.set(coreRadius*9.8, coreRadius*9.8, 1);
       coreMesh.add(rim);
 
       const container = new THREE.Group();
       container.add(coreMesh);
+
       const baseAngle = (idx / GENRES.length) * Math.PI * 2;
       container.userData.baseAngle = baseAngle;
       container.userData.idx = idx;
       container.position.set(Math.cos(baseAngle) * CLUSTER_RADIUS, Math.sin(baseAngle) * CLUSTER_RADIUS * 0.6, -idx * 6);
 
-      const tilt = { x: (Math.random() * 0.9 - 0.45) * Math.PI / 2, y: (Math.random() * 0.9 - 0.45) * Math.PI / 2, z: (Math.random() * 0.6 - 0.3) * Math.PI / 6 };
-      const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random() * 160), 9.5, (idx % 2 === 0));
+      const tilt = { x:(Math.random()*0.9 - 0.45)*Math.PI/2, y:(Math.random()*0.9 - 0.45)*Math.PI/2, z:(Math.random()*0.6 - 0.3)*Math.PI/6 };
+      const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random()*160), 9.5, (idx % 2 === 0));
       container.add(ringObj.group);
 
-      const gasGeo = new THREE.SphereGeometry(coreRadius * 1.9, 32, 32);
-      const gasMat = new THREE.MeshBasicMaterial({ color: g.color, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false });
+      const gasGeo = new THREE.SphereGeometry(coreRadius*1.9, 32, 32);
+      const gasMat = new THREE.MeshBasicMaterial({ color: g.color, transparent:true, opacity:0.035, blending:THREE.AdditiveBlending, depthWrite:false });
       const gasMesh = new THREE.Mesh(gasGeo, gasMat);
       container.add(gasMesh);
 
@@ -197,104 +212,104 @@ export default function App() {
       orbsRef.current[g.id] = { id: g.id, idx, container, core: coreMesh, ringObj, gas: gasMesh, baseAngle };
     });
 
-    // Aurora/haze (soft circular)
-    function createAuroraSprite(colorStops, size = 1600, opacity = 0.3) {
-      const c = document.createElement('canvas'); c.width = c.height = size; const ctx = c.getContext('2d');
-      const cx = size * (0.45 + (Math.random() - 0.5) * 0.08); const cy = size * (0.45 + (Math.random() - 0.5) * 0.08);
-      const grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, size * 0.95);
+    /* ---------- Aurora / haze sprites ---------- */
+    function createAuroraSprite(colorStops, size=1600, opacity=0.3){
+      const c = document.createElement("canvas"); c.width = c.height = size; const ctx = c.getContext("2d");
+      const cx = size * (0.45 + (Math.random()-0.5)*0.08);
+      const cy = size * (0.45 + (Math.random()-0.5)*0.08);
+      const grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, size*0.95);
       colorStops.forEach(s => grad.addColorStop(s.offset, s.color));
       ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
       const tex = new THREE.CanvasTexture(c); tex.needsUpdate = true;
-      return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent:true, opacity, blending:THREE.AdditiveBlending, depthWrite:false }));
+      return spr;
     }
-    const smokeBack1 = createAuroraSprite([{ offset: 0, color: 'rgba(0,0,0,0)' }, { offset: 0.14, color: 'rgba(120,40,200,0.12)' }, { offset: 0.78, color: 'rgba(20,150,200,0.06)' }, { offset: 1, color: 'rgba(0,0,0,0)' }], 2000);
-    smokeBack1.scale.set(3000, 1600, 1); smokeBack1.position.set(-60, -120, -1800); scene.add(smokeBack1);
-    const smokeBack2 = createAuroraSprite([{ offset: 0, color: 'rgba(0,0,0,0)' }, { offset: 0.18, color: 'rgba(200,40,140,0.10)' }, { offset: 0.6, color: 'rgba(60,40,220,0.08)' }, { offset: 1, color: 'rgba(0,0,0,0)' }], 1800);
-    smokeBack2.scale.set(2600, 1300, 1); smokeBack2.position.set(120, -60, -1600); scene.add(smokeBack2);
-    const smokeFront1 = createAuroraSprite([{ offset: 0, color: 'rgba(0,0,0,0)' }, { offset: 0.18, color: 'rgba(160,40,220,0.08)' }, { offset: 0.7, color: 'rgba(30,200,220,0.07)' }, { offset: 1, color: 'rgba(0,0,0,0)' }], 1400);
-    smokeFront1.scale.set(2200, 1100, 1); smokeFront1.position.set(30, 80, -320); scene.add(smokeFront1);
-    const smokeFront2 = createAuroraSprite([{ offset: 0, color: 'rgba(0,0,0,0)' }, { offset: 0.18, color: 'rgba(240,120,100,0.06)' }, { offset: 0.7, color: 'rgba(90,80,255,0.05)' }, { offset: 1, color: 'rgba(0,0,0,0)' }], 1200);
-    smokeFront2.scale.set(1800, 900, 1); smokeFront2.position.set(-80, 40, -260); scene.add(smokeFront2);
+    const smokeBack1 = createAuroraSprite([{offset:0,color:'rgba(0,0,0,0)'},{offset:0.14,color:'rgba(120,40,200,0.12)'},{offset:0.78,color:'rgba(20,150,200,0.06)'},{offset:1,color:'rgba(0,0,0,0)'}], 2000, 0.42);
+    smokeBack1.scale.set(3000,1600,1); smokeBack1.position.set(-60,-120,-1800); scene.add(smokeBack1);
+    const smokeBack2 = createAuroraSprite([{offset:0,color:'rgba(0,0,0,0)'},{offset:0.18,color:'rgba(200,40,140,0.10)'},{offset:0.6,color:'rgba(60,40,220,0.08)'},{offset:1,color:'rgba(0,0,0,0)'}], 1800, 0.3);
+    smokeBack2.scale.set(2600,1300,1); smokeBack2.position.set(120,-60,-1600); scene.add(smokeBack2);
+    const smokeFront1 = createAuroraSprite([{offset:0,color:'rgba(0,0,0,0)'},{offset:0.18,color:'rgba(160,40,220,0.08)'},{offset:0.7,color:'rgba(30,200,220,0.07)'},{offset:1,color:'rgba(0,0,0,0)'}], 1400, 0.30);
+    smokeFront1.scale.set(2200,1100,1); smokeFront1.position.set(30,80,-320); scene.add(smokeFront1);
+    const smokeFront2 = createAuroraSprite([{offset:0,color:'rgba(0,0,0,0)'},{offset:0.18,color:'rgba(240,120,100,0.06)'},{offset:0.7,color:'rgba(90,80,255,0.05)'},{offset:1,color:'rgba(0,0,0,0)'}], 1200, 0.24);
+    smokeFront2.scale.set(1800,900,1); smokeFront2.position.set(-80,40,-260); scene.add(smokeFront2);
 
-    // HORIZONTAL RIBBON (line + sprite glow)
+    /* ---------- Horizontal ribbon (512 points) ---------- */
     const POINTS = 512;
     const ribbonGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(POINTS * 3);
     const colors = new Float32Array(POINTS * 3);
-    function worldWidthAtZ(z) {
+    function worldWidthAtZ(z){
       const vFOV = camera.fov * Math.PI / 180;
       const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
       return height * camera.aspect;
     }
     const width = worldWidthAtZ(0) * 1.05;
-    for (let i = 0; i < POINTS; i++) {
-      const x = -width / 2 + (i / (POINTS - 1)) * width;
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = Math.sin(i / 6) * 6;
-      positions[i * 3 + 2] = -120;
-      colors[i * 3] = 0.8; colors[i * 3 + 1] = 0.7; colors[i * 3 + 2] = 1.0;
+    for (let i=0;i<POINTS;i++){
+      const x = -width/2 + (i/(POINTS-1)) * width;
+      positions[i*3] = x;
+      positions[i*3+1] = Math.sin(i/6) * 6;
+      positions[i*3+2] = -120;
+      colors[i*3] = 0.8; colors[i*3+1] = 0.7; colors[i*3+2] = 1.0;
     }
     ribbonGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     ribbonGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const ribbonMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending });
+    const ribbonMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
     const ribbonLine = new THREE.Line(ribbonGeo, ribbonMat);
     ribbonLine.frustumCulled = false;
     scene.add(ribbonLine);
 
-    const ccanvas = document.createElement('canvas'); ccanvas.width = 2048; ccanvas.height = 256;
-    const cctx = ccanvas.getContext('2d');
-    const gg = cctx.createLinearGradient(0, 0, ccanvas.width, 0);
-    gg.addColorStop(0, 'rgba(255,255,255,0.00)');
-    gg.addColorStop(0.18, 'rgba(255,255,255,0.06)');
-    gg.addColorStop(0.5, 'rgba(255,255,255,0.14)');
-    gg.addColorStop(0.82, 'rgba(255,255,255,0.06)');
-    gg.addColorStop(1, 'rgba(255,255,255,0.00)');
-    cctx.fillStyle = gg; cctx.fillRect(0, 0, ccanvas.width, ccanvas.height);
-    cctx.globalCompositeOperation = 'lighter';
-    const vgrad = cctx.createLinearGradient(0, 0, ccanvas.width, ccanvas.height);
+    // sprite glow behind ribbon
+    const canvasGlow = document.createElement("canvas"); canvasGlow.width = 2048; canvasGlow.height = 256;
+    const ctx = canvasGlow.getContext("2d");
+    const lg = ctx.createLinearGradient(0,0,canvasGlow.width,0);
+    lg.addColorStop(0, 'rgba(255,255,255,0.00)');
+    lg.addColorStop(0.18, 'rgba(255,255,255,0.06)');
+    lg.addColorStop(0.5, 'rgba(255,255,255,0.14)');
+    lg.addColorStop(0.82, 'rgba(255,255,255,0.06)');
+    lg.addColorStop(1, 'rgba(255,255,255,0.00)');
+    ctx.fillStyle = lg; ctx.fillRect(0,0,canvasGlow.width, canvasGlow.height);
+    ctx.globalCompositeOperation = 'lighter';
+    const vgrad = ctx.createLinearGradient(0,0,canvasGlow.width, canvasGlow.height);
     vgrad.addColorStop(0, 'rgba(255,255,255,0.00)');
     vgrad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
     vgrad.addColorStop(1, 'rgba(255,255,255,0.00)');
-    cctx.fillStyle = vgrad; cctx.fillRect(0, 0, ccanvas.width, ccanvas.height);
-    cctx.globalCompositeOperation = 'source-over';
-    const glowTex = new THREE.CanvasTexture(ccanvas);
-    const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+    ctx.fillStyle = vgrad; ctx.fillRect(0,0,canvasGlow.width, canvasGlow.height);
+    ctx.globalCompositeOperation = 'source-over';
+    const glowTex = new THREE.CanvasTexture(canvasGlow);
+    const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false });
     const sprite = new THREE.Sprite(spriteMat);
     sprite.scale.set(width * 1.05, Math.max(40, width * 0.035), 1);
     sprite.position.set(0, -8, -140);
     scene.add(sprite);
 
-    ribbonRef.current = { line: ribbonLine, sprite, geo: ribbonGeo, points: POINTS, _prevY: (() => {
-      // extract stored y positions for smoothing
-      const arr = new Float32Array(POINTS);
-      for (let i = 0; i < POINTS; i++) arr[i] = positions[i * 3 + 1];
-      return arr;
-    })() };
+    ribbonRef.current = { line: ribbonLine, sprite, geo: ribbonGeo, points: POINTS, _prevY: new Float32Array(POINTS) };
+    // initialize _prevY to current Y positions
+    for (let i=0;i<POINTS;i++) ribbonRef.current._prevY[i] = positions[i*3+1];
 
-    // PILLAR RIBBONS
+    /* ---------- Pillar ribbons (one per genre) ---------- */
     const PILLAR_RIBBONS = [];
-    function makePillarTexture(colorHex, h = 1024, w = 192) {
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const ctx2 = c.getContext('2d');
-      const grad2 = ctx2.createLinearGradient(0, 0, 0, h);
+    function makePillarTexture(colorHex, h=1024, w=192){
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const cx = c.getContext("2d");
+      const grad = cx.createLinearGradient(0,0,0,h);
       const rgba = a => toCssRgba(colorHex, a);
-      grad2.addColorStop(0.00, rgba(0.0));
-      grad2.addColorStop(0.08, rgba(0.06));
-      grad2.addColorStop(0.25, rgba(0.12));
-      grad2.addColorStop(0.45, rgba(0.18));
-      grad2.addColorStop(0.65, rgba(0.12));
-      grad2.addColorStop(0.92, rgba(0.06));
-      grad2.addColorStop(1.00, rgba(0.0));
-      ctx2.fillStyle = grad2; ctx2.fillRect(0, 0, w, h);
-      ctx2.globalCompositeOperation = 'lighter';
-      const hg = ctx2.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0.00, rgba(0.0));
+      grad.addColorStop(0.08, rgba(0.06));
+      grad.addColorStop(0.25, rgba(0.12));
+      grad.addColorStop(0.45, rgba(0.18));
+      grad.addColorStop(0.65, rgba(0.12));
+      grad.addColorStop(0.92, rgba(0.06));
+      grad.addColorStop(1.00, rgba(0.0));
+      cx.fillStyle = grad; cx.fillRect(0,0,w,h);
+      cx.globalCompositeOperation = 'lighter';
+      const hg = cx.createLinearGradient(0,0,w,0);
       hg.addColorStop(0, 'rgba(255,255,255,0.00)');
       hg.addColorStop(0.45, 'rgba(255,255,255,0.04)');
       hg.addColorStop(0.5, 'rgba(255,255,255,0.08)');
       hg.addColorStop(0.55, 'rgba(255,255,255,0.04)');
       hg.addColorStop(1, 'rgba(255,255,255,0.00)');
-      ctx2.fillStyle = hg; ctx2.fillRect(0, 0, w, h);
-      ctx2.globalCompositeOperation = 'source-over';
+      cx.fillStyle = hg; cx.fillRect(0,0,w,h);
+      cx.globalCompositeOperation = 'source-over';
       const tex = new THREE.CanvasTexture(c); tex.needsUpdate = true;
       return tex;
     }
@@ -302,22 +317,22 @@ export default function App() {
     GENRES.forEach((g, idx) => {
       const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
       const tex = makePillarTexture(g.color, 1024, 192);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.20, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true, opacity:0.20, depthWrite:false, blending:THREE.AdditiveBlending, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.frustumCulled = false;
-      mesh.rotation.x = -Math.PI / 2 + 0.02;
+      mesh.rotation.x = -Math.PI/2 + 0.02;
       mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1);
-      mesh.position.set(0, -80, -180 - idx * 6);
+      mesh.position.set(0, -80, -180 - idx*6);
       mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
       scene.add(mesh);
       PILLAR_RIBBONS.push({ mesh, geo, mat, idx, baseX: 0 });
     });
     pillarsRef.current = PILLAR_RIBBONS;
 
-    // RAYCAST click handling -> select genre
+    /* ---------- Raycast / interaction for orbs ---------- */
     const raycaster = new THREE.Raycaster();
     const ndcMouse = new THREE.Vector2();
-    function onPointerDown(e) {
+    function onPointerDown(e){
       const rect = renderer.domElement.getBoundingClientRect();
       ndcMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ndcMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -325,11 +340,11 @@ export default function App() {
       const cores = [];
       ORB_GROUP.children.forEach(c => { c.traverse(n => { if (n.isMesh && n.geometry && n.geometry.type === "SphereGeometry") cores.push(n); }); });
       const hits = raycaster.intersectObjects(cores, true);
-      if (hits.length > 0) {
+      if (hits.length > 0){
         let hit = hits[0].object;
         let parent = null;
-        for (const c of ORB_GROUP.children) { if (c.children.includes(hit) || c === hit || c.children.includes(hit.parent)) { parent = c; break; } }
-        if (parent) {
+        for (const c of ORB_GROUP.children){ if (c.children.includes(hit) || c === hit || c.children.includes(hit.parent)) { parent = c; break; } }
+        if (parent){
           const found = Object.values(orbsRef.current).find(o => o.container === parent);
           if (found) handleGenreSelect(found.id);
         }
@@ -337,100 +352,98 @@ export default function App() {
     }
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
-    // ANIMATE
+    /* ---------- Animation loop ---------- */
     let start = performance.now();
-    function getAmps() {
-      if (!analyserRef.current) return null;
-      const freqData = new Uint8Array(analyserRef.current.frequencyBinCount || 1024);
-      analyserRef.current.getByteFrequencyData(freqData);
-      const lowCount = Math.max(1, Math.floor(freqData.length * 0.02));
-      let bass = 0; for (let i = 0; i < lowCount; i++) bass += freqData[i];
-      bass = bass / lowCount / 255;
-      let sum = 0; for (let i = 0; i < freqData.length; i++) sum += freqData[i] * freqData[i];
-      const rms = Math.sqrt(sum / freqData.length) / 255;
-      return { bass, rms, rawFreq: freqData };
-    }
-    function animate() {
-      animRef.current = requestAnimationFrame(animate);
+    function animate(){
+      animRequestRef.current = requestAnimationFrame(animate);
       const t = (performance.now() - start) * 0.001;
+
+      // audio-derived amplitudes if analyser present
       const amps = analyserRef.current ? getAmps() : null;
       const bass = amps ? amps.bass : 0;
       const rms = amps ? amps.rms : 0.06 + Math.sin(t * 0.25) * 0.02;
 
+      // stars
       starsFar.points.rotation.z += 0.00035;
       starsNear.points.rotation.z -= 0.00048;
-      starsNear.mat.opacity = 0.55 + Math.sin(t * 0.9 + 3.1) * 0.08 + rms * 0.12;
-      starsFar.mat.opacity = 0.88 + Math.cos(t * 0.4 + 1.7) * 0.04 + bass * 0.06;
+      starsNear.mat.opacity = 0.55 + Math.sin(t*0.9 + 3.1) * 0.08 + rms * 0.12;
+      starsFar.mat.opacity = 0.88 + Math.cos(t*0.4 + 1.7) * 0.04 + bass * 0.06;
+
       dustPlane.rotation.z += 0.00012;
 
-      // smoke / aurora pulses
-      const smokePulse = 0.6 + Math.sin(t * 0.9) * 0.12 + bass * 0.9;
+      const smokePulse = 0.6 + Math.sin(t*0.9) * 0.12 + bass * 0.9;
       smokeBack1.material.opacity = 0.28 * smokePulse;
-      smokeBack2.material.opacity = 0.22 * (0.9 + Math.cos(t * 0.7) * 0.06 + bass * 0.4);
-      smokeFront1.material.opacity = 0.24 * (0.9 + Math.sin(t * 0.5) * 0.06 + rms * 0.9);
-      smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t * 0.63) * 0.05 + bass * 0.6);
+      smokeBack2.material.opacity = 0.22 * (0.9 + Math.cos(t*0.7) * 0.06 + bass * 0.4);
+      smokeFront1.material.opacity = 0.24 * (0.9 + Math.sin(t*0.5) * 0.06 + rms * 0.9);
+      smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t*0.63) * 0.05 + bass * 0.6);
 
-      // camera subtle move
-      camera.position.z = CAMERA_Z + Math.sin(t * 0.08) * 6 + bass * 80;
-      camera.position.x = Math.sin(t * 0.04) * 12 * (0.7 + rms * 0.8);
-      camera.position.y = Math.cos(t * 0.03) * 6 * (0.7 + rms * 0.6);
-      camera.lookAt(0, 0, 0);
+      // camera subtle motion
+      camera.position.z = 850 + Math.sin(t*0.08) * 6 + bass * 80;
+      camera.position.x = Math.sin(t*0.04) * 12 * (0.7 + rms * 0.8);
+      camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
+      camera.lookAt(0,0,0);
 
-      // orbits
+      // cluster/orbits (diagonal ellipse)
       const clusterSpeed = 0.12 + bass * 0.38;
       const tiltAngle = -Math.PI / 4;
       const cosT = Math.cos(tiltAngle), sinT = Math.sin(tiltAngle);
+      let centerOffsetX = 0, centerOffsetY = 0; // could push if you add left panels
 
       GENRES.forEach((g, idx) => {
         const o = orbsRef.current[g.id];
         if (!o) return;
         const phaseOffset = o.baseAngle;
         const angle = t * clusterSpeed + phaseOffset * (0.6 + idx * 0.08);
-        const ex = CLUSTER_RADIUS * (0.86 + Math.sin(idx + t * 0.12) * 0.02);
-        const ey = CLUSTER_RADIUS * 0.48 * (0.9 + Math.cos(idx * 0.7 + t * 0.11) * 0.02);
+        const ex = CLUSTER_RADIUS * (0.86 + Math.sin(idx + t*0.12) * 0.02);
+        const ey = CLUSTER_RADIUS * 0.48 * (0.9 + Math.cos(idx*0.7 + t*0.11) * 0.02);
         const rawX = Math.cos(angle) * ex;
         const rawY = Math.sin(angle) * ey;
         const rx = rawX * cosT - rawY * sinT;
         const ry = rawX * sinT + rawY * cosT;
-        const jitterX = Math.sin(t * 0.27 + idx * 0.64) * 6;
-        const jitterY = Math.cos(t * 0.31 + idx * 0.41) * 3;
-        o.container.position.x = rx + jitterX + (idx - (GENRES.length - 1) / 2) * Math.sin(t * 0.02) * 0.7;
-        o.container.position.y = ry + jitterY + Math.cos(idx * 0.5 + t * 0.2) * 4;
-        o.container.position.z = Math.sin(t * (0.45 + idx * 0.02)) * 8 - idx * 3;
-        o.core.rotation.y += 0.002 + idx * 0.0003;
-        o.core.rotation.x += 0.0011;
-        o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-        o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
-        o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
+        const jitterX = Math.sin(t*0.27 + idx*0.64) * 6;
+        const jitterY = Math.cos(t*0.31 + idx*0.41) * 3;
 
-        // sync pillar follow
+        o.container.position.x = rx + centerOffsetX + jitterX + (idx - (GENRES.length-1)/2) * Math.sin(t*0.02) * 0.7;
+        o.container.position.y = ry + centerOffsetY + jitterY + Math.cos(idx*0.5 + t*0.2) * 4;
+        o.container.position.z = Math.sin(t*(0.45 + idx*0.02)) * 8 - idx*3;
+
+        o.core.rotation.y += 0.002 + idx*0.0003;
+        o.core.rotation.x += 0.0011;
+
+        o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
+        o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t*0.6 + idx)) * 0.18 + rms * 0.22;
+        o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t*0.9 + idx) + bass * 0.018;
+
+        // sync pillar
         const pillar = PILLAR_RIBBONS[idx];
-        if (pillar) {
+        if (pillar){
           pillar.mesh.userData.baseX = o.container.position.x;
-          pillar.mesh.position.z = o.container.position.z - 50 - idx * 2;
+          pillar.mesh.position.z = o.container.position.z - 50 - idx*2;
         }
       });
 
-      // ribbon update (time-domain if analyser present, otherwise gentle idle)
+      // horizontal ribbon: time-domain (if analyser) else idle gentle waving
       try {
         const posAttr = ribbonRef.current.geo.attributes.position;
         const posArr = posAttr.array;
         const pts = ribbonRef.current.points;
         const prev = ribbonRef.current._prevY;
         const alpha = 0.18;
+        // time domain from analyser if available
         let timeData = null;
         if (analyserRef.current) {
-          timeData = new Uint8Array(analyserRef.current.fftSize || 2048);
-          analyserRef.current.getByteTimeDomainData(timeData);
+          const td = new Uint8Array(analyserRef.current.fftSize || 2048);
+          analyserRef.current.getByteTimeDomainData(td);
+          timeData = td;
         }
         if (timeData && timeData.length > 0) {
           const tdLen = timeData.length;
-          for (let i = 0; i < pts; i++) {
-            const f = (i / (pts - 1)) * (tdLen - 1);
-            const i0 = Math.floor(f), i1 = Math.min(tdLen - 1, i0 + 1);
+          for (let i=0;i<pts;i++){
+            const f = (i / (pts-1)) * (tdLen - 1);
+            const i0 = Math.floor(f), i1 = Math.min(tdLen-1, i0+1);
             const frac = f - i0;
             const td0 = timeData[i0], td1 = timeData[i1];
-            const td = td0 * (1 - frac) + td1 * frac;
+            const td = td0 * (1-frac) + td1 * frac;
             const v = (td / 128.0) - 1.0;
             const amplitude = 120 + (selectedGenre ? 80 : 0);
             const baseOsc = Math.sin(i * 0.09 + t * 0.7) * 0.14;
@@ -438,53 +451,56 @@ export default function App() {
             const idx3 = i * 3;
             prev[i] = prev[i] * (1 - alpha) + targetY * alpha;
             posArr[idx3 + 1] = prev[i] - 10;
-            posArr[idx3 + 2] = -120 + Math.sin(t * 0.28 + i * 0.04) * 5;
+            posArr[idx3 + 2] = -120 + Math.sin(t*0.28 + i*0.04) * 5;
           }
           posAttr.needsUpdate = true;
           sprite.material.opacity = Math.min(0.95, 0.22 + (analyserRef.current ? (getAmps().rms * 1.4) : 0.36));
         } else {
-          for (let i = 0; i < pts; i++) {
-            const idx3 = i * 3;
-            const targetY = (Math.sin(i * 0.08 + t * 0.9) * 12 + Math.sin(i * 0.06 + t * 0.3) * 6 - 8);
+          // idle gentle waving
+          for (let i=0;i<pts;i++){
+            const idx3 = i*3;
+            const targetY = (Math.sin(i*0.08 + t*0.9) * 12 + Math.sin(i*0.06 + t*0.3)*6 - 8);
             prev[i] = prev[i] * (1 - alpha) + targetY * alpha;
             posArr[idx3 + 1] = prev[i];
-            posArr[idx3 + 2] = -120 + Math.sin(t * 0.12 + i * 0.03) * 4;
+            posArr[idx3 + 2] = -120 + Math.sin(t*0.12 + i*0.03)*4;
           }
           posAttr.needsUpdate = true;
           sprite.material.opacity = 0.45;
         }
-      } catch (err) { /* safe */ }
+      } catch (err) {
+        // ignore safely
+      }
 
-      // pillar weave gentle waving
+      // pillar weave (gentle waving)
       try {
         PILLAR_RIBBONS.forEach((p, pIdx) => {
           const mesh = p.mesh;
-          const posA = mesh.geometry.attributes.position;
-          const arr = posA.array;
+          const posAttr = mesh.geometry.attributes.position;
+          const arr = posAttr.array;
           const wSegs = mesh.userData.wSegs || 10;
           const hSegs = mesh.userData.hSegs || 48;
           const baseX = mesh.userData.baseX || mesh.position.x;
           const baseZ = mesh.userData.baseZ || mesh.position.z;
           const phase = pIdx * 0.6;
           let vi = 0;
-          const globalAmp = 22 + (analyserRef.current ? getAmps().bass * 140 : 0);
-          const freq = 0.9 + (analyserRef.current ? getAmps().rms * 6.0 : 0.06 * 6.0);
-          for (let iy = 0; iy <= hSegs; iy++) {
+          const globalAmp = 22 + bass * 140;
+          const freq = 0.9 + (rms * 6.0);
+          for (let iy = 0; iy <= hSegs; iy++){
             const vNorm = iy / hSegs;
             const yFactor = (vNorm - 0.5) * mesh.userData.height;
-            for (let ix = 0; ix <= wSegs; ix++) {
-              const idxArr = vi * 3;
-              const xBaseLocal = (-mesh.userData.width / 2) + (ix / wSegs) * mesh.userData.width;
+            for (let ix = 0; ix <= wSegs; ix++){
+              const idx = vi * 3;
+              const xBaseLocal = (-mesh.userData.width/2) + (ix / wSegs) * mesh.userData.width;
               const disp = Math.sin((vNorm * Math.PI * 4.0) + (t * freq) + phase + ix * 0.18) * (globalAmp * (0.14 + (ix / wSegs) * 0.5));
-              arr[idxArr] = baseX + xBaseLocal + disp * 0.012;
-              arr[idxArr + 1] = yFactor - 80;
-              arr[idxArr + 2] = baseZ + Math.sin(t * 0.6 + ix * 0.07 + iy * 0.03) * 6;
+              arr[idx] = baseX + xBaseLocal + disp * 0.012;
+              arr[idx+1] = yFactor - 80;
+              arr[idx+2] = baseZ + Math.sin(t*0.6 + ix*0.07 + iy*0.03) * 6;
               vi++;
             }
           }
-          posA.needsUpdate = true;
-          if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, (analyserRef.current ? getAmps().rms : 0.06) * 0.6) + (pIdx === GENRES.findIndex(g => g.id === selectedGenre) ? 0.06 : 0);
-          mesh.rotation.z = Math.sin(t * 0.23 + pIdx * 0.5) * 0.015;
+          posAttr.needsUpdate = true;
+          if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g => g.id === selectedGenre) ? 0.06 : 0);
+          mesh.rotation.z = Math.sin(t*0.23 + pIdx*0.5) * 0.015;
         });
       } catch (e) { /* safe */ }
 
@@ -492,144 +508,174 @@ export default function App() {
     }
     animate();
 
-    // resize handler
-    function onResize() {
+    // helper for amplitude extraction
+    function getAmps(){
+      if (!analyserRef.current) return null;
+      const freqData = new Uint8Array(analyserRef.current.frequencyBinCount || 1024);
+      analyserRef.current.getByteFrequencyData(freqData);
+      const lowCount = Math.max(1, Math.floor(freqData.length * 0.02));
+      let bass = 0; for (let i=0;i<lowCount;i++) bass += freqData[i];
+      bass = bass / lowCount / 255;
+      let sum = 0; for (let i=0;i<freqData.length;i++) sum += freqData[i]*freqData[i];
+      const rms = Math.sqrt(sum / freqData.length) / 255;
+      return { bass, rms, rawFreq: freqData };
+    }
+
+    /* ---------- Resize handler ---------- */
+    function onResize(){
       const w = window.innerWidth, h = window.innerHeight;
-      renderer.setSize(w, h);
+      renderer.setSize(w,h);
       camera.aspect = w / h; camera.updateProjectionMatrix();
-      // recompute ribbon x positions and sprite scale
       try {
-        const newWidth = worldWidthAtZ(0) * 1.05;
+        const newWidth = (2 * Math.tan(camera.fov * Math.PI/180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
         sprite.scale.set(newWidth * 1.05, Math.max(40, newWidth * 0.035), 1);
         const posArr = ribbonRef.current.geo.attributes.position.array;
-        for (let i = 0; i < ribbonRef.current.points; i++) {
-          const x = -newWidth / 2 + (i / (ribbonRef.current.points - 1)) * newWidth;
-          posArr[i * 3] = x;
+        for (let i=0;i<ribbonRef.current.points;i++){
+          const x = -newWidth/2 + (i/(ribbonRef.current.points-1)) * newWidth;
+          posArr[i*3] = x;
         }
         ribbonRef.current.geo.attributes.position.needsUpdate = true;
-      } catch (e) { /* safe */ }
+      } catch(e){ /* safe */ }
     }
     window.addEventListener("resize", onResize);
 
+    // mark as mounted for the UI effect to trigger selection load
     setMounted(true);
 
-    // CLEANUP
+    /* ---------- Cleanup on unmount ---------- */
     return () => {
-      cancelAnimationFrame(animRef.current);
-      try { renderer.domElement.removeEventListener("pointerdown", onPointerDown); } catch (e) {}
+      cancelAnimationFrame(animRequestRef.current);
+      try { renderer.domElement.removeEventListener("pointerdown", onPointerDown); } catch(e){}
       window.removeEventListener("resize", onResize);
-      try { renderer.dispose(); } catch (e) {}
-      try { mount.removeChild(renderer.domElement); } catch (e) {}
+      try { renderer.dispose(); } catch(e){}
+      try { mount.removeChild(renderer.domElement); } catch(e){}
+      // stop audio / close context
       try {
-        if (audioElementRef.current) {
-          audioElementRef.current.pause();
-          audioElementRef.current.src = "";
-          audioElementRef.current = null;
+        if (audioElRef.current) {
+          audioElRef.current.pause(); audioElRef.current.src = ""; audioElRef.current = null;
         }
         if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
-          audioCtxRef.current.close();
-          audioCtxRef.current = null;
+          audioCtxRef.current.close(); audioCtxRef.current = null; analyserRef.current = null;
         }
-      } catch (err) {}
+      } catch(e){}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // run once
 
-  // handleGenreSelect: updates UI + embed + visuals
-  function handleGenreSelect(genreId) {
+  /* ------------------------- handle selection, spotify embed, visuals colorizing ------------------------- */
+  async function handleGenreSelect(genreId) {
     setSelectedGenre(genreId);
     const g = GENRES.find(x => x.id === genreId);
     if (!g) return;
 
-    // embed Spotify (prefer)
-    if (spotifyRef.current) {
+    // embed spotify (preferred) into spotifyRef panel
+    if (spotifyRef.current){
       spotifyRef.current.innerHTML = "";
       try {
         const u = new URL(g.spotify);
-        if (u.hostname.includes("spotify")) {
+        if (u.hostname.includes("spotify")){
           const parts = u.pathname.split("/").filter(Boolean);
-          if (parts.length >= 2) {
+          // pattern /playlist/{id} or /track/{id}
+          if (parts.length >= 2){
             const embedPath = `/embed/${parts[0]}/${parts[1]}`;
             const iframe = document.createElement("iframe");
             iframe.src = `https://open.spotify.com${embedPath}`;
-            iframe.width = "300"; iframe.height = "80"; iframe.frameBorder = "0";
+            iframe.width = "300";
+            iframe.height = "80";
+            iframe.frameBorder = "0";
             iframe.allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
-            iframe.style.borderRadius = "10px"; iframe.style.width = "100%"; iframe.loading = "lazy";
+            iframe.style.borderRadius = "10px";
+            iframe.style.width = "100%";
+            iframe.loading = "lazy";
             spotifyRef.current.appendChild(iframe);
           } else {
+            // fallback raw url
             const iframe = document.createElement("iframe");
-            iframe.src = g.spotify; iframe.width = "300"; iframe.height = "80"; iframe.frameBorder = "0";
-            iframe.style.borderRadius = "10px"; iframe.style.width = "100%";
+            iframe.src = g.spotify;
+            iframe.width = "300";
+            iframe.height = "80";
+            iframe.frameBorder = "0";
+            iframe.style.borderRadius = "10px";
+            iframe.style.width = "100%";
             spotifyRef.current.appendChild(iframe);
           }
         } else {
           const iframe = document.createElement("iframe");
-          iframe.src = g.spotify; iframe.width = "300"; iframe.height = "80"; iframe.frameBorder = "0";
-          iframe.style.borderRadius = "10px"; iframe.style.width = "100%";
+          iframe.src = g.spotify;
+          iframe.width = "300";
+          iframe.height = "80";
+          iframe.frameBorder = "0";
+          iframe.style.borderRadius = "10px";
+          iframe.style.width = "100%";
           spotifyRef.current.appendChild(iframe);
         }
-      } catch (e) {
+      } catch(e){
+        // if parsing fails, use raw string
         const iframe = document.createElement("iframe");
-        iframe.src = g.spotify; iframe.width = "300"; iframe.height = "80"; iframe.frameBorder = "0";
-        iframe.style.borderRadius = "10px"; iframe.style.width = "100%";
+        iframe.src = g.spotify;
+        iframe.width = "300";
+        iframe.height = "80";
+        iframe.frameBorder = "0";
+        iframe.style.borderRadius = "10px";
+        iframe.style.width = "100%";
         spotifyRef.current.appendChild(iframe);
       }
     }
 
-    // colorize ribbon and emphasize pillar & orb
+    // colorize ribbon / sprite and emphasize pillars/orbs
     try {
-      const tr = ((g.color >> 16) & 255) / 255, tg = ((g.color >> 8) & 255) / 255, tb = (g.color & 255) / 255;
-      if (ribbonRef.current && ribbonRef.current.geo && ribbonRef.current.geo.attributes.color) {
+      const rgbTr = ((g.color >> 16) & 255) / 255, rgbTg = ((g.color >> 8) & 255) / 255, rgbTb = (g.color & 255) / 255;
+      if (ribbonRef.current && ribbonRef.current.geo && ribbonRef.current.geo.attributes.color){
         const colors = ribbonRef.current.geo.attributes.color.array;
-        for (let i = 0; i < ribbonRef.current.points; i++) {
-          const idx = i * 3;
-          colors[idx] = 0.14 + tr * 0.86;
-          colors[idx + 1] = 0.14 + tg * 0.86;
-          colors[idx + 2] = 0.14 + tb * 0.86;
+        for (let i=0;i<ribbonRef.current.points;i++){
+          const idx = i*3;
+          colors[idx] = 0.14 + rgbTr * 0.86;
+          colors[idx+1] = 0.14 + rgbTg * 0.86;
+          colors[idx+2] = 0.14 + rgbTb * 0.86;
         }
         ribbonRef.current.geo.attributes.color.needsUpdate = true;
       }
-      if (ribbonRef.current && ribbonRef.current.sprite && ribbonRef.current.sprite.material) {
+      if (ribbonRef.current && ribbonRef.current.sprite && ribbonRef.current.sprite.material){
         ribbonRef.current.sprite.material.color = new THREE.Color(g.color);
         ribbonRef.current.sprite.material.opacity = 0.62;
       }
-      // pillar emphasis
+      // pillars
       pillarsRef.current.forEach((p, i) => {
         p.mesh.material.opacity = (GENRES[i].id === genreId) ? 0.34 : 0.16;
       });
-      // orb highlight
+      // orbs
       Object.values(orbsRef.current).forEach(o => {
         if (o.id === genreId) {
           o.core.material.emissiveIntensity = 1.6;
           o.core.scale.set(1.12, 1.12, 1.12);
         } else {
           o.core.material.emissiveIntensity = 0.6;
-          o.core.scale.set(1, 1, 1);
+          o.core.scale.set(1,1,1);
         }
       });
-    } catch (e) { /* safe */ }
-
-    // stop analyzable local audio (Spotify embed can't be analyzed)
+    } catch(e){}
+    // stop any local audio analysis since Spotify embed can't be analyzed
     try {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-        audioElementRef.current.src = "";
-        audioElementRef.current = null;
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current.src = "";
+        audioElRef.current = null;
       }
       if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
         audioCtxRef.current.close();
         audioCtxRef.current = null;
         analyserRef.current = null;
       }
-    } catch (e) { /* safe */ }
+    } catch(e){}
   }
 
-  // load local audio (file or URL) to enable analysis
+  /* ------------------------- Load local audio for analysis ------------------------- */
   async function loadLocalAudioFile(fileOrUrl) {
+    // stop previous
     try {
-      if (audioElementRef.current) { audioElementRef.current.pause(); audioElementRef.current.src = ""; audioElementRef.current = null; }
+      if (audioElRef.current) { audioElRef.current.pause(); audioElRef.current.src = ""; audioElRef.current = null; }
       if (audioCtxRef.current && audioCtxRef.current.state !== "closed") { audioCtxRef.current.close(); audioCtxRef.current = null; analyserRef.current = null; }
-    } catch (e) { /* safe */ }
+    } catch(e){}
 
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -645,49 +691,60 @@ export default function App() {
       audioEl.style.width = "100%";
       audioEl.src = typeof fileOrUrl === "string" ? fileOrUrl : URL.createObjectURL(fileOrUrl);
       audioEl.loop = true;
-      await audioEl.play().catch(() => { /* may require gesture */ });
+      // user gesture may be required to begin playback
+      await audioEl.play().catch(() => {});
       const source = audioCtx.createMediaElementSource(audioEl);
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
 
-      audioElementRef.current = audioEl;
-      if (spotifyRef.current) {
+      audioElRef.current = audioEl;
+      // show audio element in spotify panel for feedback
+      if (spotifyRef.current){
         spotifyRef.current.innerHTML = "";
         spotifyRef.current.appendChild(audioEl);
       }
     } catch (err) {
-      console.warn("Failed to load audio for analysis", err);
+      console.warn("Failed to setup local audio analyser", err);
     }
   }
 
-  // UI bindings
-  function onFileChange(e) {
-    const f = e.target.files && e.target.files[0]; if (!f) return;
+  /* ------------------------- UI: file/url handlers ------------------------- */
+  function onFileChange(e){
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
     loadLocalAudioFile(f);
   }
-  function onUrlKeyDown(e) {
-    if (e.key === "Enter") {
-      const v = e.target.value && e.target.value.trim(); if (!v) return;
-      loadLocalAudioFile(v); e.target.value = "";
+  function onUrlKeyDown(e){
+    if (e.key === "Enter"){
+      const v = e.target.value && e.target.value.trim();
+      if (!v) return;
+      loadLocalAudioFile(v);
+      e.target.value = "";
     }
   }
 
-  // ensure default selection when the canvas mounts
+  /* ------------------------- ensure default genre loads after mount ------------------------- */
   useEffect(() => {
     if (mounted) handleGenreSelect(selectedGenre);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
 
+  /* ------------------------- Render UI ------------------------- */
   return (
     <>
+      {/* Three.js canvas mount */}
       <div ref={mountRef} id="three-bg" style={{ position: "fixed", inset: 0, zIndex: 0 }} />
 
-      <div id="ribbon" className="idle" style={{ zIndex: 2, pointerEvents: "none" }} />
+      {/* decorative CSS ribbon (keeps visual parity with original CSS) */}
+      <div id="ribbon" className="idle" style={{ position: "fixed", top: "50%", left: 0, width: "100%", height: 3, transform: "translateY(-50%)", zIndex: 2, pointerEvents: "none" }} />
 
-      <div id="uiCluster" style={{ zIndex: 30 }}>
-        <div id="playlistPanel" className="panel" style={{ width: 280 }}>
+      {/* UI cluster (top-right) */}
+      <div id="uiCluster" style={{ position: "fixed", top: 20, right: 30, display: "flex", flexDirection: "column", gap: 10, zIndex: 30 }}>
+        {/* Playlist / Now Playing */}
+        <div id="playlistPanel" className="panel" style={{ width: 300 }}>
           <h3 style={{ margin: 0, marginBottom: 8 }}>Now Playing</h3>
           <div ref={spotifyRef} id="spotifyEmbed" style={{ width: "100%" }}>
+            {/* default placeholder embed (will be replaced on genre selection) */}
             <iframe
               title="default-spotify"
               src={GENRES[1].spotify}
@@ -697,16 +754,18 @@ export default function App() {
             />
           </div>
 
+          {/* local audio controls */}
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             <label style={{ fontSize: 12, opacity: 0.9 }}>Load local audio</label>
             <input type="file" accept="audio/*" onChange={onFileChange} style={{ marginLeft: "auto" }} />
           </div>
           <div style={{ marginTop: 8 }}>
-            <input placeholder="Paste MP3/ogg URL + Enter" onKeyDown={onUrlKeyDown} style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.03)", color: "#fff" }} />
+            <input placeholder="Paste MP3/OGG URL + Enter" onKeyDown={onUrlKeyDown} style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "none", background: "rgba(255,255,255,0.03)", color: "#fff" }} />
           </div>
         </div>
 
-        <div id="genreBar" className="panel" style={{ width: 280 }}>
+        {/* Genre selection panel */}
+        <div id="genreBar" className="panel" style={{ width: 300 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <strong style={{ fontSize: 13 }}>Genres</strong>
             <small style={{ opacity: 0.8 }}>{GENRES.length} options</small>
@@ -729,7 +788,7 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    minWidth: 86,
+                    minWidth: 86
                   }}
                 >
                   <span style={{ width: 12, height: 12, borderRadius: 4, background: toCssHex(g.color), display: "inline-block", boxShadow: active ? "0 6px 18px rgba(0,0,0,0.45)" : "none" }} />
