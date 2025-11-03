@@ -23,10 +23,10 @@
       <iframe
         id="spotifyPlayer"
         style="border-radius:12px"
-        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator"
-        width="300" height="80"
+        src="https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
+        width="260"
+        height="160"
         frameborder="0"
-        allowfullscreen=""
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy">
       </iframe>
@@ -35,16 +35,43 @@
     <!-- Genre bar -->
     <div id="genrePanel" class="panel">
       <div id="genreBar">
-        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
+        <span data-genre="hard-techno" style="color:#ff0040;">Hard Techno</span>
         <span data-genre="techno" style="color:#00ffff;">Techno</span>
-        <span data-genre="house" style="color:#ffff00;">House</span>
-        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
-        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
-        <span data-genre="drum-bass" style="color:#99ccff;">Drum & Bass</span>
-        <span data-genre="experimental" style="color:#ffaa33;">Experimental</span>
+        <span data-genre="drum-and-bass" style="color:#00ff66;">Drum & Bass</span>
+        <span data-genre="dubstep" style="color:#ff8800;">Dubstep</span>
+        <span data-genre="electronic-dance" style="color:#ffee00;">Electronic/Dance</span>
+        <span data-genre="house" style="color:#00aaff;">House</span>
+        <span data-genre="pop-international" style="color:#ff77ff;">Pop/International</span>
       </div>
     </div>
   </div>
+
+  <script>
+    // --- Genre to Spotify playlist mapping ---
+    const genrePlaylists = {
+      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX0XUsuxWHRQd", // Hard Techno
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675", // Techno Bunker
+      "drum-and-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1DX1aZCw7xyWtU", // DnB Top 50
+      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1DX3bS0nLEymx0", // Dubstep Don
+      "electronic-dance": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n", // Dance Hits
+      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1DX2sUQwD7tbmL", // House Top 50
+      "pop-international": "https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF" // Global Top 50
+    };
+
+    const genreSpans = document.querySelectorAll('#genreBar span');
+    const spotifyPlayer = document.getElementById('spotifyPlayer');
+
+    genreSpans.forEach(span => {
+      span.addEventListener('click', () => {
+        genreSpans.forEach(s => s.classList.remove('active'));
+        span.classList.add('active');
+
+        const genre = span.dataset.genre;
+        const newSrc = genrePlaylists[genre];
+        spotifyPlayer.src = newSrc;
+      });
+    });
+  </script>
 
   <script src="app.js"></script>
 </body>
