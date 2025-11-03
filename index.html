@@ -11,93 +11,52 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 
   <style>
-    /* --- Aesthetic UI Enhancements --- */
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: "Inter", sans-serif;
-      color: white;
-      background-color: #000;
-    }
-
-    #uiCluster {
-      position: fixed;
-      top: 2%;
-      right: 2%;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      align-items: flex-end;
-      z-index: 10;
-    }
-
-    .panel {
-      backdrop-filter: blur(14px);
-      background: rgba(20, 20, 20, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
-      padding: 12px;
-      transition: all 0.3s ease;
-    }
-
-    .panel:hover {
-      box-shadow: 0 0 18px rgba(255, 255, 255, 0.15);
-    }
-
-    #playlistPanel {
-      width: 360px;
-      height: 500px;
-      overflow: hidden;
-    }
-
+    /* Refined Spotify panel visuals */
     #playlistPanel iframe {
-      width: 100%;
-      height: 100%;
-      border-radius: 12px;
-      transition: opacity 0.5s ease;
+      width: 300px;
+      height: 380px;
+      border-radius: 16px;
+      border: none;
     }
 
-    #genrePanel {
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    #playlistPanel h3 {
+      margin-bottom: 10px;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      opacity: 0.9;
+      text-transform: uppercase;
     }
 
+    /* Genre bar alignment and spacing */
     #genreBar {
       display: flex;
       flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px;
+      gap: 8px;
+      justify-content: flex-start;
+      margin-top: 10px;
     }
-
     #genreBar span {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.8em;
+      background: rgba(255,255,255,0.08);
       cursor: pointer;
-      font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 20px;
       transition: all 0.3s ease;
-      opacity: 0.9;
-      background: rgba(255,255,255,0.05);
     }
-
-    #genreBar span:hover {
-      transform: scale(1.05);
-      opacity: 1;
-      text-shadow: 0 0 8px currentColor;
-    }
-
     #genreBar span.active {
+      background: rgba(255,255,255,0.18);
       box-shadow: 0 0 12px currentColor;
-      text-shadow: 0 0 8px currentColor;
-      background: rgba(255,255,255,0.1);
+      transform: scale(1.1);
     }
 
-    h3 {
-      margin: 0 0 10px;
-      font-weight: 500;
-      text-align: center;
-      letter-spacing: 1px;
+    @media (max-width: 760px) {
+      #playlistPanel iframe {
+        width: 85vw;
+        height: 340px;
+      }
+      #genreBar {
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -114,7 +73,6 @@
       <iframe
         id="spotifyPlayer"
         src="https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
-        frameborder="0"
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy">
       </iframe>
@@ -125,10 +83,10 @@
       <div id="genreBar">
         <span data-genre="hard-techno" style="color:#ff0040;">Hard Techno</span>
         <span data-genre="techno" style="color:#00ffff;">Techno</span>
+        <span data-genre="house" style="color:#00aaff;">House</span>
         <span data-genre="drum-and-bass" style="color:#00ff66;">Drum & Bass</span>
         <span data-genre="dubstep" style="color:#ff8800;">Dubstep</span>
         <span data-genre="electronic-dance" style="color:#ffee00;">Electronic/Dance</span>
-        <span data-genre="house" style="color:#00aaff;">House</span>
         <span data-genre="pop-international" style="color:#ff77ff;">Pop/International</span>
       </div>
     </div>
@@ -137,19 +95,17 @@
   <script>
     // --- Genre to Spotify playlist mapping ---
     const genrePlaylists = {
-      "hard-techno": "37i9dQZF1DWXCzcvFxzeno",
-      "techno": "37i9dQZF1DX6J5NfMJS675", // UPDATED playlist
-      "drum-and-bass": "37i9dQZF1EIherXksVvnrN",
-      "dubstep": "37i9dQZF1EIecXBS1w2psY",
-      "electronic-dance": "37i9dQZF1DX4dyzvuaRJ0n",
-      "house": "37i9dQZF1EIdDyy28MYSyS",
-      "pop-international": "37i9dQZEVXbMDoHDwVN2tF"
+      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?utm_source=generator", // Hard Techno
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator", // Techno (updated)
+      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1EIdDyy28MYSyS?utm_source=generator", // House
+      "drum-and-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1EIherXksVvnrN?utm_source=generator", // Drum & Bass
+      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1EIecXBS1w2psY?utm_source=generator", // Dubstep Don
+      "electronic-dance": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n?utm_source=generator", // Dance
+      "pop-international": "https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator" // Global Top 50
     };
 
     const genreSpans = document.querySelectorAll('#genreBar span');
     const spotifyPlayer = document.getElementById('spotifyPlayer');
-    const playlistPanel = document.querySelector('#playlistPanel');
-    const playlistTitle = playlistPanel.querySelector('h3');
 
     genreSpans.forEach(span => {
       span.addEventListener('click', () => {
@@ -157,19 +113,8 @@
         span.classList.add('active');
 
         const genre = span.dataset.genre;
-        const playlistId = genrePlaylists[genre];
-        const color = span.style.color;
-
-        // Smooth fade transition
-        spotifyPlayer.style.opacity = 0;
-        setTimeout(() => {
-          spotifyPlayer.src = `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`;
-          spotifyPlayer.style.opacity = 1;
-        }, 400);
-
-        // Color sync
-        playlistTitle.style.color = color;
-        playlistPanel.style.boxShadow = `0 0 20px ${color}`;
+        const newSrc = genrePlaylists[genre];
+        spotifyPlayer.src = newSrc;
       });
     });
   </script>
