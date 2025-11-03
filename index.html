@@ -9,6 +9,97 @@
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+
+  <style>
+    /* --- Aesthetic UI Enhancements --- */
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: white;
+      background-color: #000;
+    }
+
+    #uiCluster {
+      position: fixed;
+      top: 2%;
+      right: 2%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-end;
+      z-index: 10;
+    }
+
+    .panel {
+      backdrop-filter: blur(14px);
+      background: rgba(20, 20, 20, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .panel:hover {
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.15);
+    }
+
+    #playlistPanel {
+      width: 360px;
+      height: 500px;
+      overflow: hidden;
+    }
+
+    #playlistPanel iframe {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      transition: opacity 0.5s ease;
+    }
+
+    #genrePanel {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #genreBar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    #genreBar span {
+      cursor: pointer;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      transition: all 0.3s ease;
+      opacity: 0.9;
+      background: rgba(255,255,255,0.05);
+    }
+
+    #genreBar span:hover {
+      transform: scale(1.05);
+      opacity: 1;
+      text-shadow: 0 0 8px currentColor;
+    }
+
+    #genreBar span.active {
+      box-shadow: 0 0 12px currentColor;
+      text-shadow: 0 0 8px currentColor;
+      background: rgba(255,255,255,0.1);
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-weight: 500;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+  </style>
 </head>
 <body>
   <!-- 3D canvas and ribbon -->
@@ -22,10 +113,7 @@
       <h3>Now Playing</h3>
       <iframe
         id="spotifyPlayer"
-        style="border-radius:12px"
         src="https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
-        width="260"
-        height="160"
         frameborder="0"
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy">
@@ -47,10 +135,10 @@
   </div>
 
   <script>
-    // --- Genre to Spotify playlist mapping (playlist IDs only) ---
+    // --- Genre to Spotify playlist mapping ---
     const genrePlaylists = {
       "hard-techno": "37i9dQZF1DWXCzcvFxzeno",
-      "techno": "18vUeZ9BdtMRNV6gI8RnR6",
+      "techno": "37i9dQZF1DX6J5NfMJS675", // UPDATED playlist
       "drum-and-bass": "37i9dQZF1EIherXksVvnrN",
       "dubstep": "37i9dQZF1EIecXBS1w2psY",
       "electronic-dance": "37i9dQZF1DX4dyzvuaRJ0n",
@@ -60,6 +148,8 @@
 
     const genreSpans = document.querySelectorAll('#genreBar span');
     const spotifyPlayer = document.getElementById('spotifyPlayer');
+    const playlistPanel = document.querySelector('#playlistPanel');
+    const playlistTitle = playlistPanel.querySelector('h3');
 
     genreSpans.forEach(span => {
       span.addEventListener('click', () => {
@@ -68,15 +158,18 @@
 
         const genre = span.dataset.genre;
         const playlistId = genrePlaylists[genre];
-        const newSrc = `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`;
-
-        // Update player source
-        spotifyPlayer.src = newSrc;
-
-        // Match genre highlight color
         const color = span.style.color;
-        document.querySelector('#playlistPanel h3').style.color = color;
-        document.querySelector('#playlistPanel').style.boxShadow = `0 0 20px ${color}`;
+
+        // Smooth fade transition
+        spotifyPlayer.style.opacity = 0;
+        setTimeout(() => {
+          spotifyPlayer.src = `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`;
+          spotifyPlayer.style.opacity = 1;
+        }, 400);
+
+        // Color sync
+        playlistTitle.style.color = color;
+        playlistPanel.style.boxShadow = `0 0 20px ${color}`;
       });
     });
   </script>
