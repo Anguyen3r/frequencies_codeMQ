@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — SoundCloud System</title>
+  <title>Dream Bubbles — Spotify System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
@@ -17,24 +17,31 @@
 
   <!-- Top-right UI cluster -->
   <div id="uiCluster">
-    <!-- Playlist -->
+    <!-- Playlist (Spotify) -->
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
-      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
-        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
+      <iframe
+        id="spotifyPlayer"
+        style="border-radius:12px"
+        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator"
+        width="300" height="80"
+        frameborder="0"
+        allowfullscreen=""
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy">
       </iframe>
     </div>
 
-    <!-- Genre bar (corrected 7 genres) -->
+    <!-- Genre bar -->
     <div id="genrePanel" class="panel">
       <div id="genreBar">
-        <span data-genre="hard-techno" style="color:#ff2b6a;">Hard Techno</span>
+        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
         <span data-genre="techno" style="color:#00ffff;">Techno</span>
         <span data-genre="house" style="color:#ffff00;">House</span>
-        <span data-genre="dnb" style="color:#4cff7b;">Drum & Bass</span>
-        <span data-genre="dubstep" style="color:#5fc9ff;">Dubstep</span>
-        <span data-genre="electronic" style="color:#3f7bff;">Electronic / Dance</span>
-        <span data-genre="pop" style="color:#ff77ff;">Pop / International</span>
+        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
+        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
+        <span data-genre="drum-bass" style="color:#99ccff;">Drum & Bass</span>
+        <span data-genre="experimental" style="color:#ffaa33;">Experimental</span>
       </div>
     </div>
   </div>
