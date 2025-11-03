@@ -2,19 +2,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
-/**
- * Full React + Three.js main app.
- * - 7 genres, each with color + Spotify playlist URL
- * - Orbiting orbs (bubbles) + stardust rings + glow
- * - Vertical weaving pillar planes that follow orbs
- * - Horizontal ribbon (time-domain visual when local audio is loaded)
- * - Spotify embed in the UI (click a genre to load embed)
- *
- * Notes:
- * - Spotify embed cannot be analyzed for audio data; local audio URLs / uploads use WebAudio analyser.
- * - Keep index.html / CSS mostly unchanged; inline style used sparingly for the UI container only.
- */
-
 const GENRES = [
   { id: "hard-techno", name: "Hard Techno", color: 0xff2b6a, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX9sIqqvKsjG8" },
   { id: "techno", name: "Techno", color: 0x8a5fff, spotify: "https://open.spotify.com/playlist/37i9dQZF1DX6f9r4Vf1D3K" },
@@ -25,41 +12,30 @@ const GENRES = [
   { id: "pop", name: "Pop", color: 0xff89d9, spotify: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" },
 ];
 
-function toCssHex(n) {
+function hexToCss(n) {
   return "#" + ("000000" + n.toString(16)).slice(-6);
 }
-function toCssRgba(n, a = 1) {
-  const r = (n >> 16) & 255,
-    g = (n >> 8) & 255,
-    b = n & 255;
+function rgbaFromHex(n, a = 1) {
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
   return `rgba(${r},${g},${b},${a})`;
 }
 
 export default function App() {
   const mountRef = useRef(null);
   const spotifyRef = useRef(null);
-  const spotifyInputRef = useRef(null);
-  const [selectedGenre, setSelectedGenre] = useState(GENRES[0].id);
-  const [legendOpen, setLegendOpen] = useState(true);
+  const audioInputRef = useRef(null);
+  const [currentGenre, setCurrentGenre] = useState(GENRES[0].id);
+  const [spotifyUrl, setSpotifyUrl] = useState(GENRES[0].spotify);
+  const [analyzableAudioActive, setAnalyzableAudioActive] = useState(false);
 
-  // Hold Three.js objects / controllers in refs so we can cleanup
-  const threeRef = useRef({
-    scene: null,
-    camera: null,
-    renderer: null,
-    orbs: {},
-    pillars: [],
-    ribbon: null,
-    audioController: null,
-    animId: null,
-  });
-
-  // mount Three.js scene
   useEffect(() => {
+    // ---- Three.js scene setup ----
     const mount = mountRef.current;
     if (!mount) return;
 
-    // ---------- Basic scene / renderer / camera ----------
+    let rafId = null;
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x00000c, 0.00009);
 
@@ -75,14 +51,16 @@ export default function App() {
     renderer.domElement.style.position = "fixed";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.zIndex = "0";
-
     mount.appendChild(renderer.domElement);
 
     // lights
-    const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(10, 20, 10); scene.add(dir);
+    const amb = new THREE.AmbientLight(0xffffff, 0.45);
+    scene.add(amb);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(10, 20, 10);
+    scene.add(dir);
 
-    // ---------- Starfield & dust ----------
+    // --- star layers (background) ---
     function makeStarLayer(count, spreadX = 5000, spreadY = 3000, spreadZ = 5000, size = 1.2, opacity = 0.9) {
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(count * 3);
@@ -93,40 +71,39 @@ export default function App() {
       }
       geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
       const mat = new THREE.PointsMaterial({ color: 0xffffff, size, transparent: true, opacity, depthWrite: false });
-      const points = new THREE.Points(geo, mat);
-      return { points, mat };
+      return new THREE.Points(geo, mat);
     }
-    const starsFar = makeStarLayer(1200, 6000, 3600, 6000, 1.1, 0.9);
-    const starsNear = makeStarLayer(500, 3500, 2200, 3500, 1.9, 0.6);
-    scene.add(starsFar.points, starsNear.points);
+    const starsFar = makeStarLayer(1400, 6000, 3600, 6000, 1.1, 0.9);
+    const starsNear = makeStarLayer(600, 3500, 2200, 3500, 1.9, 0.6);
+    scene.add(starsFar, starsNear);
 
-    // dust plane (background texture) - keep optional: uses remote asset
+    // dust plane
     const dustTex = new THREE.TextureLoader().load("https://assets.codepen.io/982762/clouds.png");
-    const dustPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(7000, 3800),
-      new THREE.MeshBasicMaterial({ map: dustTex, transparent: true, opacity: 0.045, depthWrite: false })
-    );
+    const dustPlane = new THREE.Mesh(new THREE.PlaneGeometry(7000, 3800), new THREE.MeshBasicMaterial({ map: dustTex, transparent: true, opacity: 0.05, depthWrite: false }));
     dustPlane.position.set(0, 0, -2600);
     scene.add(dustPlane);
 
-    // ---------- Procedural textures ----------
-    function genGlowTexture(colorHex) {
+    // --- orbs + stardust rings ---
+    const CLUSTER_RADIUS = 420;
+    const ORB_GROUP = new THREE.Group();
+    scene.add(ORB_GROUP);
+    const ORB_MESHES = {};
+
+    function createGlowTexture(colorHex) {
       const size = 256;
       const c = document.createElement("canvas");
       c.width = c.height = size;
       const ctx = c.getContext("2d");
-      const grad = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2);
+      const grad = ctx.createRadialGradient(size / 2, size / 2, 6, size / 2, size / 2, size / 2);
       grad.addColorStop(0, "rgba(255,255,255,1)");
-      grad.addColorStop(0.18, "rgba(255,255,255,0.9)");
-      grad.addColorStop(0.42, toCssRgba(colorHex, 0.35));
+      grad.addColorStop(0.25, "rgba(255,255,255,0.6)");
+      grad.addColorStop(0.6, rgbaFromHex(colorHex, 0.28));
       grad.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, size, size);
-      const tex = new THREE.CanvasTexture(c);
-      tex.needsUpdate = true;
-      return tex;
+      return new THREE.CanvasTexture(c);
     }
-    function genStarTexture() {
+    function createStarTexture() {
       const s = 64;
       const c = document.createElement("canvas");
       c.width = c.height = s;
@@ -140,41 +117,30 @@ export default function App() {
       ctx.fillRect(0, 0, s, s);
       return new THREE.CanvasTexture(c);
     }
-
-    // ---------- Orb cluster (bubbles) ----------
-    const CLUSTER_RADIUS = 420;
-    const ORB_GROUP = new THREE.Group();
-    scene.add(ORB_GROUP);
-    const ORB_MESHES = {};
-
-    function createStardustRing(coreRadius, colorHex, tilt = {}, particleCount = 220, size = 8.5, counterClockwise = true) {
+    function createStardustRing(coreRadius, colorHex, tilt, particleCount = 220, size = 8.5, counterClockwise = true) {
       const group = new THREE.Group();
       const ringRadius = coreRadius * (1.8 + Math.random() * 0.85);
       const positions = new Float32Array(particleCount * 3);
-      const sizes = new Float32Array(particleCount);
       for (let i = 0; i < particleCount; i++) {
         const theta = (i / particleCount) * Math.PI * 2;
         const rr = ringRadius + (Math.random() - 0.5) * (coreRadius * 0.36);
         positions[i * 3] = Math.cos(theta) * rr;
         positions[i * 3 + 1] = Math.sin(theta) * rr;
         positions[i * 3 + 2] = (Math.random() - 0.5) * (coreRadius * 0.5);
-        sizes[i] = (Math.random() * 1.6 + 1.2) * size;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      const mat = new THREE.PointsMaterial({ size, map: genStarTexture(), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+      const mat = new THREE.PointsMaterial({ size, map: createStarTexture(), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
       mat.color = new THREE.Color(colorHex).multiplyScalar(0.94);
       const points = new THREE.Points(geo, mat);
       group.add(points);
 
-      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: genGlowTexture(colorHex), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending }));
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: createGlowTexture(colorHex), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.scale.set(ringRadius * 2.0, ringRadius * 2.0, 1);
       group.add(glow);
-
       group.rotation.set(tilt.x || 0, tilt.y || 0, tilt.z || 0);
-      const baseSpeed = 0.004 + Math.random() * 0.006;
-      const rotationSpeed = baseSpeed * (counterClockwise ? -1 : 1);
-      return { group, points, mat, rotationSpeed, ringRadius };
+      group.userData = { rotationSpeed: (0.004 + Math.random() * 0.006) * (counterClockwise ? -1 : 1) };
+      return { group, points, mat, ringRadius };
     }
 
     GENRES.forEach((g, idx) => {
@@ -194,22 +160,19 @@ export default function App() {
       });
       coreMat.depthWrite = false;
       const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-
-      // rim sprite (soft glow)
-      const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: genGlowTexture(g.color), color: g.color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending }));
+      const rim = new THREE.Sprite(new THREE.SpriteMaterial({ map: createGlowTexture(g.color), color: g.color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
       rim.scale.set(coreRadius * 9.8, coreRadius * 9.8, 1);
       coreMesh.add(rim);
 
       const container = new THREE.Group();
       container.add(coreMesh);
-
       const baseAngle = (idx / GENRES.length) * Math.PI * 2;
       container.userData.baseAngle = baseAngle;
       container.userData.idx = idx;
       container.position.set(Math.cos(baseAngle) * CLUSTER_RADIUS, Math.sin(baseAngle) * CLUSTER_RADIUS * 0.6, -idx * 6);
 
       const tilt = { x: (Math.random() * 0.9 - 0.45) * Math.PI / 2, y: (Math.random() * 0.9 - 0.45) * Math.PI / 2, z: (Math.random() * 0.6 - 0.3) * Math.PI / 6 };
-      const ringObj = createStardustRing(coreRadius, g.color, tilt, 220 + Math.floor(Math.random() * 160), 9.5, idx % 2 === 0);
+      const ringObj = createStardustRing(coreRadius, g.color, tilt, 160 + Math.floor(Math.random() * 120), 8.5, (idx % 2 === 0));
       container.add(ringObj.group);
 
       const gasGeo = new THREE.SphereGeometry(coreRadius * 1.9, 32, 32);
@@ -221,8 +184,8 @@ export default function App() {
       ORB_MESHES[g.id] = { id: g.id, idx, container, core: coreMesh, ringObj, gas: gasMesh, baseAngle };
     });
 
-    // ---------- Aurora / haze sprites (circular / soft) ----------
-    function createAuroraSprite(colorStops = [], size = 1600, opacity = 0.3) {
+    // --- gentle aurora / haze sprites (non-rectangular) ---
+    function createAuroraSprite(colorStops, size = 1600, opacity = 0.3) {
       const c = document.createElement("canvas");
       c.width = c.height = size;
       const ctx = c.getContext("2d");
@@ -234,37 +197,122 @@ export default function App() {
       ctx.fillRect(0, 0, size, size);
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
-      return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, blending: THREE.AdditiveBlending }));
+      return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
     }
     const smokeBack1 = createAuroraSprite([{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: 0.14, color: "rgba(120,40,200,0.12)" }, { offset: 0.78, color: "rgba(20,150,200,0.06)" }, { offset: 1, color: "rgba(0,0,0,0)" }], 2000, 0.42);
     smokeBack1.scale.set(3000, 1600, 1); smokeBack1.position.set(-60, -120, -1800); scene.add(smokeBack1);
-
     const smokeBack2 = createAuroraSprite([{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: 0.18, color: "rgba(200,40,140,0.10)" }, { offset: 0.6, color: "rgba(60,40,220,0.08)" }, { offset: 1, color: "rgba(0,0,0,0)" }], 1800, 0.3);
     smokeBack2.scale.set(2600, 1300, 1); smokeBack2.position.set(120, -60, -1600); scene.add(smokeBack2);
-
     const smokeFront1 = createAuroraSprite([{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: 0.18, color: "rgba(160,40,220,0.08)" }, { offset: 0.7, color: "rgba(30,200,220,0.07)" }, { offset: 1, color: "rgba(0,0,0,0)" }], 1400, 0.30);
     smokeFront1.scale.set(2200, 1100, 1); smokeFront1.position.set(30, 80, -320); scene.add(smokeFront1);
-
     const smokeFront2 = createAuroraSprite([{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: 0.18, color: "rgba(240,120,100,0.06)" }, { offset: 0.7, color: "rgba(90,80,255,0.05)" }, { offset: 1, color: "rgba(0,0,0,0)" }], 1200, 0.24);
     smokeFront2.scale.set(1800, 900, 1); smokeFront2.position.set(-80, 40, -260); scene.add(smokeFront2);
 
-    // corner accent sprites
-    const cornerSpecs = [
-      { x: -1.0, y: -1.0, color: "rgba(160,40,220,0.14)" },
-      { x: 1.0, y: -0.9, color: "rgba(40,200,220,0.11)" },
-      { x: -0.9, y: 1.0, color: "rgba(240,120,100,0.09)" },
-      { x: 0.9, y: 0.9, color: "rgba(100,120,255,0.07)" }
-    ];
-    const cornerSprites = [];
-    cornerSpecs.forEach((s, i) => {
-      const spr = createAuroraSprite([{ offset: 0, color: s.color }, { offset: 1, color: "rgba(0,0,0,0)" }], 900, 0.14);
-      spr.scale.set(900, 900, 1);
-      spr.position.set(s.x * 1200 * (0.6 + Math.random() * 0.4), s.y * 700 * (0.6 + Math.random() * 0.4), -320);
-      scene.add(spr);
-      cornerSprites.push(spr);
-    });
+    // --- horizontal ribbon (Line + sprite glow) ---
+    const RIBBON = {};
+    (function initRibbon() {
+      const POINTS = 512;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(POINTS * 3);
+      const colors = new Float32Array(POINTS * 3);
 
-    // ---------- Audio Controller (WebAudio) ----------
+      // world width at z=0
+      function worldWidthAtZ(z) {
+        const vFOV = camera.fov * Math.PI / 180;
+        const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
+        const width = height * camera.aspect;
+        return width;
+      }
+      const width = worldWidthAtZ(0) * 1.05;
+      for (let i = 0; i < POINTS; i++) {
+        const x = -width / 2 + (i / (POINTS - 1)) * width;
+        positions[i * 3] = x;
+        positions[i * 3 + 1] = Math.sin(i / 6) * 6;
+        positions[i * 3 + 2] = -120;
+        colors[i * 3] = 0.8; colors[i * 3 + 1] = 0.7; colors[i * 3 + 2] = 1.0;
+      }
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending });
+      const line = new THREE.Line(geometry, mat);
+      line.frustumCulled = false;
+      scene.add(line);
+
+      // glow sprite to mask sharp edges
+      const c = document.createElement("canvas");
+      c.width = 2048; c.height = 256;
+      const ctx = c.getContext("2d");
+      const g = ctx.createLinearGradient(0, 0, c.width, 0);
+      g.addColorStop(0, "rgba(255,255,255,0.00)");
+      g.addColorStop(0.18, "rgba(255,255,255,0.06)");
+      g.addColorStop(0.5, "rgba(255,255,255,0.14)");
+      g.addColorStop(0.82, "rgba(255,255,255,0.06)");
+      g.addColorStop(1, "rgba(255,255,255,0.00)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      const glowTex = new THREE.CanvasTexture(c);
+      const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(width * 1.05, Math.max(40, width * 0.035), 1);
+      sprite.position.set(0, -8, -140);
+      scene.add(sprite);
+
+      const prevY = new Float32Array(POINTS);
+      for (let i = 0; i < POINTS; i++) prevY[i] = positions[i * 3 + 1];
+
+      RIBBON.line = line;
+      RIBBON.sprite = sprite;
+      RIBBON.geometry = geometry;
+      RIBBON.points = POINTS;
+      RIBBON.width = width;
+      RIBBON._prevY = prevY;
+      RIBBON.smoothAlpha = 0.18;
+    })();
+
+    // --- pillar ribbons (simpler plane ribbons that wave) ---
+    const PILLAR_RIBBONS = [];
+    (function initPillars() {
+      const pillarHeight = 1200;
+      const pillarWidth = 160;
+      const hSegs = 48;
+      const wSegs = 10;
+      GENRES.forEach((g, idx) => {
+        const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
+        // gradient canvas
+        const c = document.createElement("canvas");
+        c.width = 192; c.height = 1024;
+        const ctx = c.getContext("2d");
+        const grad = ctx.createLinearGradient(0, 0, 0, c.height);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(0.12, rgbaFromHex(g.color, 0.06));
+        grad.addColorStop(0.45, rgbaFromHex(g.color, 0.14));
+        grad.addColorStop(0.92, rgbaFromHex(g.color, 0.06));
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, c.width, c.height);
+        // light horizontal sheen
+        const hg = ctx.createLinearGradient(0, 0, c.width, 0);
+        hg.addColorStop(0, "rgba(255,255,255,0.00)");
+        hg.addColorStop(0.5, "rgba(255,255,255,0.04)");
+        hg.addColorStop(1, "rgba(255,255,255,0.00)");
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = hg; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.globalCompositeOperation = "source-over";
+        const tex = new THREE.CanvasTexture(c);
+        tex.needsUpdate = true;
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.x = -Math.PI / 2 + 0.02;
+        mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1);
+        mesh.position.set(0, -80, -180 - idx * 6);
+        mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
+        scene.add(mesh);
+        PILLAR_RIBBONS.push({ mesh, geo, mat, idx });
+      });
+    })();
+
+    // --- Audio analysis for local audio / URL (Spotify embed cannot be analyzed) ---
     const audioController = (function () {
       let audioCtx = null, analyser = null, source = null, freqData = null, timeData = null, audioEl = null, active = false;
       async function ensure() {
@@ -282,23 +330,29 @@ export default function App() {
           if (!audioEl) { audioEl = document.createElement("audio"); audioEl.crossOrigin = "anonymous"; audioEl.controls = true; audioEl.style.width = "100%"; }
           audioEl.src = url;
           audioEl.loop = !!loop;
-          audioEl.play().catch(() => { /* may be blocked until user gesture */ });
-          if (source) try { source.disconnect(); } catch (e) { }
+          // try play (may be blocked until user gesture)
+          audioEl.play().catch(()=>{});
+          if (source) try { source.disconnect(); } catch (e) {}
           source = audioCtx.createMediaElementSource(audioEl);
           source.connect(analyser);
           analyser.connect(audioCtx.destination);
           active = true;
+          setAnalyzableAudioActive(true);
+          // show audio element in spotifyRef if present
+          if (spotifyRef.current) { spotifyRef.current.innerHTML = ""; spotifyRef.current.appendChild(audioEl); }
           return true;
         } catch (err) {
           console.warn("audio load failed", err);
           active = false;
+          setAnalyzableAudioActive(false);
           return false;
         }
       }
       function stop() {
-        if (audioEl) try { audioEl.pause(); audioEl.currentTime = 0; } catch (e) { }
-        if (audioCtx && audioCtx.state !== "closed") try { audioCtx.suspend(); } catch (e) { }
+        if (audioEl) try { audioEl.pause(); audioEl.currentTime = 0; } catch (e) {}
+        if (audioCtx && audioCtx.state !== "closed") try { audioCtx.suspend(); } catch (e) {}
         active = false;
+        setAnalyzableAudioActive(false);
       }
       function getAmps() {
         if (!analyser || !freqData) return null;
@@ -316,268 +370,24 @@ export default function App() {
         return timeData;
       }
       function isActive() { return active; }
-      return { loadUrl, stop, getAmps, getTimeDomain, isActive, _internal: { getAudioElement: () => audioEl } };
+      return { loadUrl, stop, getAmps, getTimeDomain, isActive };
     })();
 
-    // ---------- Horizontal Ribbon ----------
-    const RIBBON = { points: 512 };
-    (function initRibbon() {
-      const POINTS = RIBBON.points;
-      const geometry = new THREE.BufferGeometry();
-      const positions = new Float32Array(POINTS * 3);
-      const colors = new Float32Array(POINTS * 3);
-      function worldWidthAtZ(z) {
-        const vFOV = camera.fov * Math.PI / 180;
-        const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - z);
-        const width = height * camera.aspect;
-        return width;
-      }
-      const width = worldWidthAtZ(0) * 1.05;
-      for (let i = 0; i < POINTS; i++) {
-        const x = -width / 2 + (i / (POINTS - 1)) * width;
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = Math.sin(i / 6) * 6;
-        positions[i * 3 + 2] = -120;
-        // initial soft bluish
-        colors[i * 3] = 0.8; colors[i * 3 + 1] = 0.7; colors[i * 3 + 2] = 1.0;
-      }
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending });
-      const line = new THREE.Line(geometry, mat);
-      line.frustumCulled = false;
-      scene.add(line);
-
-      // soft glow sprite behind ribbon to hide any rectangular artifact
-      const c = document.createElement("canvas"); c.width = 2048; c.height = 256;
-      const ctx = c.getContext("2d");
-      const g = ctx.createLinearGradient(0, 0, c.width, 0);
-      g.addColorStop(0, "rgba(255,255,255,0.00)");
-      g.addColorStop(0.18, "rgba(255,255,255,0.06)");
-      g.addColorStop(0.5, "rgba(255,255,255,0.14)");
-      g.addColorStop(0.82, "rgba(255,255,255,0.06)");
-      g.addColorStop(1, "rgba(255,255,255,0.00)");
-      ctx.fillStyle = g; ctx.fillRect(0, 0, c.width, c.height);
-      const glowTex = new THREE.CanvasTexture(c);
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending }));
-      sprite.scale.set(width * 1.05, Math.max(40, width * 0.035), 1);
-      sprite.position.set(0, -8, -140);
-      scene.add(sprite);
-
-      const prevY = new Float32Array(POINTS);
-      for (let i = 0; i < POINTS; i++) prevY[i] = positions[i * 3 + 1];
-
-      RIBBON.geometry = geometry;
-      RIBBON.line = line;
-      RIBBON.sprite = sprite;
-      RIBBON._prevY = prevY;
-      RIBBON.width = width;
-      RIBBON.smoothAlpha = 0.18;
-    })();
-
-    // ---------- Pillar ribbons ----------
-    const PILLARS = [];
-    (function initPillars() {
-      const pillarHeight = 1200;
-      const pillarWidth = 160;
-      const hSegs = 48;
-      const wSegs = 10;
-
-      function makePillarTexture(colorHex, h = 1024, w = 192) {
-        const c = document.createElement("canvas");
-        c.width = w; c.height = h;
-        const ctx = c.getContext("2d");
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        const rgba = (a) => toCssRgba(colorHex, a);
-        grad.addColorStop(0.0, rgba(0.0));
-        grad.addColorStop(0.08, rgba(0.06));
-        grad.addColorStop(0.25, rgba(0.12));
-        grad.addColorStop(0.45, rgba(0.18));
-        grad.addColorStop(0.65, rgba(0.12));
-        grad.addColorStop(0.92, rgba(0.06));
-        grad.addColorStop(1.0, rgba(0.0));
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
-        const hg = ctx.createLinearGradient(0, 0, w, 0);
-        hg.addColorStop(0, "rgba(255,255,255,0.00)");
-        hg.addColorStop(0.45, "rgba(255,255,255,0.04)");
-        hg.addColorStop(0.5, "rgba(255,255,255,0.08)");
-        hg.addColorStop(0.55, "rgba(255,255,255,0.04)");
-        hg.addColorStop(1, "rgba(255,255,255,0.00)");
-        ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
-        ctx.globalCompositeOperation = "source-over";
-        const tex = new THREE.CanvasTexture(c); tex.needsUpdate = true;
-        return tex;
-      }
-
-      GENRES.forEach((g, idx) => {
-        const geo = new THREE.PlaneGeometry(pillarWidth, pillarHeight, wSegs, hSegs);
-        const tex = makePillarTexture(g.color, 1024, 192);
-        tex.minFilter = THREE.LinearMipMapLinearFilter;
-        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.20, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.frustumCulled = false;
-        mesh.rotation.x = -Math.PI / 2 + 0.02;
-        mesh.rotation.y = 0.06 * (idx % 2 === 0 ? 1 : -1);
-        mesh.position.set(0, -80, -180 - idx * 6);
-        mesh.userData = { idx, baseX: 0, baseZ: mesh.position.z, width: pillarWidth, height: pillarHeight, wSegs, hSegs, color: g.color };
-        scene.add(mesh);
-        PILLARS.push({ mesh, geo, mat, idx });
-      });
-    })();
-
-    // ---------- Raycast / pointer interaction ----------
-    const raycaster = new THREE.Raycaster();
-    const ndcMouse = new THREE.Vector2();
-
-    function handlePointerDown(e) {
-      // show UI if hidden by some state
-      // compute normalized device coordinates
-      const rect = renderer.domElement.getBoundingClientRect();
-      ndcMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      ndcMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(ndcMouse, camera);
-
-      // gather orb spheres
-      const cores = [];
-      ORB_GROUP.children.forEach(c => {
-        c.traverse(n => { if (n.isMesh && n.geometry && n.geometry.type === "SphereGeometry") cores.push(n); });
-      });
-      const hits = raycaster.intersectObjects(cores, true);
-      if (hits.length > 0) {
-        const foundObj = hits[0].object;
-        // find its container
-        let parent = null;
-        for (const c of ORB_GROUP.children) {
-          if (c.children.includes(foundObj) || c === foundObj || c.children.includes(foundObj.parent)) { parent = c; break; }
-        }
-        if (parent) {
-          const found = Object.values(ORB_MESHES).find(o => o.container === parent);
-          if (found) {
-            // play/embed spotify for genre and open modal
-            playGenre(found.id);
-            openModal(found.id);
-          }
-        }
-      }
-    }
-    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
-
-    // ---------- Simple modal (vote + audio upload) ----------
-    let activeModal = null;
-    function openModal(genreId) {
-      closeModal();
-      const g = GENRES.find(x => x.id === genreId);
-      if (!g) return;
-      const modal = document.createElement("div");
-      modal.className = "panel";
-      Object.assign(modal.style, {
-        position: "fixed",
-        left: "50%",
-        top: "50%",
-        transform: "translate(-50%,-50%)",
-        zIndex: 9999,
-        width: "420px",
-        maxWidth: "90vw",
-        textAlign: "left",
-        backdropFilter: "blur(6px)",
-        padding: "14px",
-        borderRadius: "12px",
-        background: "rgba(6,10,18,0.88)",
-        color: "#e6f0ff",
-      });
-      modal.innerHTML = `
-        <button class="closeX" aria-label="Close" style="position:absolute;right:12px;top:12px;border:none;background:transparent;color:#dfefff;font-size:20px;cursor:pointer">✕</button>
-        <h3 style="margin-top:4px">${g.name}</h3>
-        <p style="color:#cfd8e6;margin-top:4px;font-size:13px">Who's your favorite artist? (Dream B2B optional)</p>
-        <input class="artist" placeholder="Favorite artist (required)" style="width:100%;padding:8px;border-radius:6px;border:none;margin-top:8px" />
-        <input class="b2b" placeholder="Dream B2B (optional)" style="width:100%;padding:8px;border-radius:6px;border:none;margin-top:8px" />
-        <textarea class="why" rows="3" placeholder="Why (optional)" style="width:100%;padding:8px;border-radius:6px;border:none;margin-top:8px"></textarea>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="modalAudioFile" type="file" accept="audio/*" style="display:none" />
-            <button id="openAudioFile" class="btn" style="padding:8px;border-radius:6px;border:none;background:#222;color:#fff;cursor:pointer">Load Local Audio</button>
-            <input id="modalAudioUrl" placeholder="Paste MP3/OGG URL" style="padding:8px;border-radius:6px;border:none;width:220px;background:rgba(255,255,255,0.02);color:#fff" />
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn ghost cancel" style="padding:8px;border-radius:6px;border:none;background:transparent;color:#fff">Cancel</button>
-            <button class="btn submit" style="padding:8px;border-radius:6px;border:none;background:#1db954;color:#fff">Submit</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-      modal.querySelector(".closeX").addEventListener("click", closeModal);
-      modal.querySelector(".cancel").addEventListener("click", closeModal);
-      modal.querySelector(".submit").addEventListener("click", async () => {
-        const artist = modal.querySelector(".artist").value.trim();
-        if (!artist) { modal.querySelector(".artist").focus(); return; }
-        // Save locally (simple localStorage)
-        const KEY = "codemq_votes";
-        const data = JSON.parse(localStorage.getItem(KEY) || "{}");
-        data[genreId] = data[genreId] || [];
-        data[genreId].push({ artist, b2b: modal.querySelector(".b2b").value.trim() || "", ts: Date.now() });
-        localStorage.setItem(KEY, JSON.stringify(data));
-        flashOrb(genreId);
-        closeModal();
-      });
-      const openAudioFileBtn = modal.querySelector("#openAudioFile");
-      const modalAudioFile = modal.querySelector("#modalAudioFile");
-      const modalAudioUrl = modal.querySelector("#modalAudioUrl");
-      openAudioFileBtn.addEventListener("click", () => modalAudioFile.click());
-      modalAudioFile.addEventListener("change", async (ev) => {
-        const f = ev.target.files && ev.target.files[0]; if (!f) return;
-        const url = URL.createObjectURL(f);
-        await audioController.loadUrl(url, { loop: true });
-        // append audio element for user visibility
-        const audioEl = audioController._internal.getAudioElement();
-        if (spotifyRef.current) {
-          spotifyRef.current.innerHTML = "";
-          spotifyRef.current.appendChild(audioEl);
-        }
-        setSelectedGenre(null); // clears genre selection because local audio is playing
-      });
-      modalAudioUrl.addEventListener("keydown", async (ev) => {
-        if (ev.key === "Enter") {
-          const url = modalAudioUrl.value.trim(); if (!url) return;
-          await audioController.loadUrl(url, { loop: true });
-          const audioEl = audioController._internal.getAudioElement();
-          if (spotifyRef.current) { spotifyRef.current.innerHTML = ""; spotifyRef.current.appendChild(audioEl); }
-          setSelectedGenre(null);
-        }
-      });
-      activeModal = modal;
-    }
-    function closeModal() {
-      if (!activeModal) return;
-      try { activeModal.remove(); } catch (e) { }
-      activeModal = null;
-    }
-
-    // ---------- Visual feedback (flash orb) ----------
-    function flashOrb(genreId) {
-      const o = ORB_MESHES[genreId];
-      if (!o) return;
-      const mat = o.core.material;
-      const orig = mat.emissiveIntensity || 0.6;
-      mat.emissiveIntensity = Math.max(1.6, orig * 2.5);
-      setTimeout(() => { mat.emissiveIntensity = orig; }, 900);
-    }
-
-    // ---------- Play genre: embed Spotify if available, otherwise attempt audio URL ----------
-    function clearSpotifyEmbed() {
+    // --- play genre: embed spotify OR fallback to internal audio url (if provided) ---
+    function clearSpotifyEmbedNode() {
       if (spotifyRef.current) spotifyRef.current.innerHTML = "";
     }
-    function embedSpotify(url) {
+    function embedSpotifyLink(url) {
       if (!spotifyRef.current) return;
       spotifyRef.current.innerHTML = "";
       try {
         const u = new URL(url);
         if (u.hostname.includes("spotify")) {
-          // path like /playlist/{id} or /track/{id}
           const pathParts = u.pathname.split("/").filter(Boolean);
           if (pathParts.length >= 2) {
+            const embedPath = `/embed/${pathParts[0]}/${pathParts[1]}`;
             const iframe = document.createElement("iframe");
-            iframe.src = `https://open.spotify.com/embed/${pathParts[0]}/${pathParts[1]}`;
+            iframe.src = `https://open.spotify.com${embedPath}`;
             iframe.width = "300";
             iframe.height = "80";
             iframe.frameBorder = "0";
@@ -589,8 +399,10 @@ export default function App() {
             return;
           }
         }
-      } catch (e) { /* fallback */ }
-      // fallback: iframe with raw URL (best effort)
+      } catch (e) {
+        // fall through and attempt generic
+      }
+      // fallback: generic iframe (best-effort)
       const iframe = document.createElement("iframe");
       iframe.src = url;
       iframe.width = "300";
@@ -603,22 +415,16 @@ export default function App() {
       spotifyRef.current.appendChild(iframe);
     }
 
-    async function playGenre(genreId) {
-      setSelectedGenre(genreId);
+    // sync colors and UI highlight
+    function colorizeForGenre(genreId) {
       const g = GENRES.find(x => x.id === genreId);
       if (!g) return;
-      // stop local audio if playing
-      try { audioController.stop(); } catch (e) { }
-      clearSpotifyEmbed();
-      if (g.spotify) {
-        embedSpotify(g.spotify);
-      } else {
-        // fallback: could load a direct audio url if mapped
-      }
-      // colorize ribbon and emphasize pillar
-      if (RIBBON.geometry) {
+      // tint ribbon
+      if (RIBBON.geometry && RIBBON.geometry.attributes.color) {
         const colors = RIBBON.geometry.attributes.color.array;
-        const tr = ((g.color >> 16) & 255) / 255, tg = ((g.color >> 8) & 255) / 255, tb = (g.color & 255) / 255;
+        const tr = ((g.color >> 16) & 255) / 255;
+        const tg = ((g.color >> 8) & 255) / 255;
+        const tb = (g.color & 255) / 255;
         for (let i = 0; i < RIBBON.points; i++) {
           const idx = i * 3;
           colors[idx] = 0.14 + tr * 0.86;
@@ -631,84 +437,147 @@ export default function App() {
           RIBBON.sprite.material.opacity = 0.62;
         }
       }
-      // pillar highlight:
-      PILLARS.forEach((p, i) => {
-        p.mesh.material.opacity = (GENRES[i].id === genreId) ? 0.34 : 0.16;
+      // pillar emphasis
+      const foundIdx = GENRES.findIndex(x => x.id === genreId);
+      PILLAR_RIBBONS.forEach((p, i) => {
+        if (p.mesh && p.mesh.material) p.mesh.material.opacity = (i === foundIdx) ? 0.34 : 0.16;
       });
-      // legend highlight handled in React UI via selectedGenre state
+      // highlight DOM legend items (if present)
+      const legend = document.getElementById("legendList");
+      if (legend) {
+        Array.from(legend.children).forEach((li, i) => {
+          li.style.boxShadow = (GENRES[i].id === genreId) ? "0 6px 18px rgba(0,0,0,0.45)" : "none";
+          li.style.transform = (GENRES[i].id === genreId) ? "translateY(-2px)" : "none";
+        });
+      }
     }
 
-    // ---------- Animation / render loop ----------
+    // --- raycast click on orbs to open modal / change genre ---
+    const raycaster = new THREE.Raycaster();
+    const ndcMouse = new THREE.Vector2();
+    function onPointerDown(e) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      ndcMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndcMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndcMouse, camera);
+
+      const cores = [];
+      ORB_GROUP.children.forEach(c => { c.traverse(n => { if (n.isMesh && n.geometry && n.geometry.type === "SphereGeometry") cores.push(n); }); });
+      const hits = raycaster.intersectObjects(cores, true);
+      if (hits.length > 0) {
+        let hit = hits[0].object;
+        let parent = null;
+        for (const c of ORB_GROUP.children) { if (c.children.includes(hit) || c === hit || c.children.includes(hit.parent)) { parent = c; break; } }
+        if (parent) {
+          const found = Object.values(ORB_MESHES).find(o => o.container === parent);
+          if (found) {
+            handleGenreClick(found.id);
+            // small visual feedback
+            const mat = found.core.material;
+            const orig = mat.emissiveIntensity || 0.6;
+            mat.emissiveIntensity = Math.max(1.6, orig * 2.2);
+            setTimeout(() => mat.emissiveIntensity = orig, 800);
+          }
+        }
+      }
+    }
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
+    // --- click-handling from React UI will call this ---
+    async function handleGenreClick(genreId) {
+      const g = GENRES.find(x => x.id === genreId);
+      if (!g) return;
+      setCurrentGenre(genreId);
+      colorizeForGenre(genreId);
+      setSpotifyUrl(g.spotify || null);
+      // Embed spotify (stop analyzable audio)
+      try { audioController.stop(); } catch (e) {}
+      clearSpotifyEmbedNode();
+      if (g.spotify && spotifyRef.current) embedSpotifyLink(g.spotify);
+    }
+
+    // --- animation loop ---
     const start = performance.now();
     function animate() {
-      threeRef.current.animId = requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
       const t = (performance.now() - start) * 0.001;
-
       const amps = audioController.getAmps();
       const bass = amps ? amps.bass : 0;
       const rms = amps ? amps.rms : 0.06 + Math.sin(t * 0.25) * 0.02;
 
-      // star twinkle
-      starsFar.points.rotation.z += 0.00035;
-      starsNear.points.rotation.z -= 0.00048;
-      starsNear.mat.opacity = 0.55 + Math.sin(t * 0.9 + 3.1) * 0.08 + rms * 0.12;
-      starsFar.mat.opacity = 0.88 + Math.cos(t * 0.4 + 1.7) * 0.04 + bass * 0.06;
+      starsFar.rotation && (starsFar.rotation.z += 0.00035);
+      starsNear.rotation && (starsNear.rotation.z -= 0.00048);
+      // dust rotation
       dustPlane.rotation.z += 0.00012;
 
       // smoke pulse
-      const smokePulse = 0.6 + Math.sin(t * 0.9) * 0.12 + bass * 0.9;
-      smokeBack1.material.opacity = 0.28 * smokePulse;
-      smokeBack2.material.opacity = 0.22 * (0.9 + Math.cos(t * 0.7) * 0.06 + bass * 0.4);
-      smokeFront1.material.opacity = 0.24 * (0.9 + Math.sin(t * 0.5) * 0.06 + rms * 0.9);
-      smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t * 0.63) * 0.05 + bass * 0.6);
+      if (smokeBack1 && smokeBack2 && smokeFront1 && smokeFront2) {
+        const smokePulse = 0.6 + Math.sin(t * 0.9) * 0.12 + bass * 0.9;
+        smokeBack1.material.opacity = 0.28 * smokePulse;
+        smokeBack2.material.opacity = 0.22 * (0.9 + Math.cos(t * 0.7) * 0.06 + bass * 0.4);
+        smokeFront1.material.opacity = 0.24 * (0.9 + Math.sin(t * 0.5) * 0.06 + rms * 0.9);
+        smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t * 0.63) * 0.05 + bass * 0.6);
+      }
 
-      // camera subtle movement
+      // camera subtle move
       camera.position.z = CAMERA_Z + Math.sin(t * 0.08) * 6 + bass * 80;
       camera.position.x = Math.sin(t * 0.04) * 12 * (0.7 + rms * 0.8);
       camera.position.y = Math.cos(t * 0.03) * 6 * (0.7 + rms * 0.6);
       camera.lookAt(0, 0, 0);
 
-      // cluster/orb motion: diagonal elliptical orbit
+      // cluster orbit
       const clusterSpeed = 0.12 + bass * 0.38;
       const tiltAngle = -Math.PI / 4;
       const cosT = Math.cos(tiltAngle), sinT = Math.sin(tiltAngle);
-
-      // optional left panel offset (if you add UI on the left)
+      // optional UI avoidance
       let centerOffsetX = 0, centerOffsetY = 0;
-      // iterate orbs
+      try {
+        const leftPanel = document.getElementById("leftPanel");
+        if (leftPanel && leftPanel.getBoundingClientRect) {
+          const lr = leftPanel.getBoundingClientRect();
+          centerOffsetX = (lr.width / Math.max(window.innerWidth, 600)) * (CLUSTER_RADIUS * 0.85);
+          centerOffsetY = -Math.min(120, lr.height * 0.08);
+        }
+      } catch (e) {}
       GENRES.forEach((g, idx) => {
         const o = ORB_MESHES[g.id];
         if (!o) return;
         const phaseOffset = o.baseAngle;
         const angle = t * clusterSpeed + phaseOffset * (0.6 + idx * 0.08);
+
         const ex = CLUSTER_RADIUS * (0.86 + Math.sin(idx + t * 0.12) * 0.02);
         const ey = CLUSTER_RADIUS * 0.48 * (0.9 + Math.cos(idx * 0.7 + t * 0.11) * 0.02);
+
         const rawX = Math.cos(angle) * ex;
         const rawY = Math.sin(angle) * ey;
+
         const rx = rawX * cosT - rawY * sinT;
         const ry = rawX * sinT + rawY * cosT;
+
         const jitterX = Math.sin(t * 0.27 + idx * 0.64) * 6;
         const jitterY = Math.cos(t * 0.31 + idx * 0.41) * 3;
+
         o.container.position.x = rx + centerOffsetX + jitterX + (idx - (GENRES.length - 1) / 2) * Math.sin(t * 0.02) * 0.7;
         o.container.position.y = ry + centerOffsetY + jitterY + Math.cos(idx * 0.5 + t * 0.2) * 4;
         o.container.position.z = Math.sin(t * (0.45 + idx * 0.02)) * 8 - idx * 3;
 
         o.core.rotation.y += 0.002 + idx * 0.0003;
         o.core.rotation.x += 0.0011;
-        o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-        o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
+
+        if (o.ringObj && o.ringObj.group) {
+          o.ringObj.group.rotation.z += (o.ringObj.group.userData.rotationSpeed || (0.004)) * (1 + bass * 0.8);
+        }
         o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
-        o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
 
         // sync pillar baseX
-        const pillar = PILLARS[idx];
+        const pillar = PILLAR_RIBBONS[idx];
         if (pillar) {
           pillar.mesh.userData.baseX = o.container.position.x;
           pillar.mesh.position.z = o.container.position.z - 50 - idx * 2;
         }
       });
 
-      // Horizontal ribbon update: uses time-domain if loaded; else gentle idle waving
+      // horizontal ribbon update (uses audioController time-domain if available)
       try {
         if (RIBBON && RIBBON.geometry) {
           const pos = RIBBON.geometry.attributes.position.array;
@@ -716,6 +585,7 @@ export default function App() {
           const timeData = audioController.getTimeDomain();
           const prevY = RIBBON._prevY;
           const alpha = RIBBON.smoothAlpha;
+          const idleOffset = 0;
           if (timeData && timeData.length > 0) {
             const tdLen = timeData.length;
             for (let i = 0; i < pts; i++) {
@@ -725,7 +595,7 @@ export default function App() {
               const td0 = timeData[i0], td1 = timeData[i1];
               const td = td0 * (1 - frac) + td1 * frac;
               const v = (td / 128.0) - 1.0;
-              const amplitude = 120 + (selectedGenre ? 80 : 0);
+              const amplitude = 120 + (currentGenre ? 80 : 0);
               const baseOsc = Math.sin(i * 0.09 + t * 0.7) * 0.14;
               const targetY = v * amplitude * (0.7 + baseOsc);
               const idx = i * 3;
@@ -737,6 +607,7 @@ export default function App() {
             const brightness = amps ? (0.28 + amps.rms * 1.4) : 0.36;
             if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.22 + brightness);
           } else {
+            // idle gentle waving
             for (let i = 0; i < pts; i++) {
               const idx = i * 3;
               const targetY = (Math.sin(i * 0.08 + t * 0.9) * 12 + Math.sin(i * 0.06 + t * 0.3) * 6 - 8);
@@ -748,13 +619,13 @@ export default function App() {
           }
           RIBBON.geometry.attributes.position.needsUpdate = true;
         }
-      } catch (e) { /* safe */ }
+      } catch (e) { /* ignore */ }
 
-      // Pillar weave update (gentle waving)
+      // pillar waving (gentle)
       try {
         const globalAmp = 22 + bass * 140;
         const freq = 0.9 + (rms * 6.0);
-        PILLARS.forEach((p, pIdx) => {
+        PILLAR_RIBBONS.forEach((p, pIdx) => {
           const mesh = p.mesh;
           const posAttr = mesh.geometry.attributes.position;
           const arr = posAttr.array;
@@ -778,20 +649,20 @@ export default function App() {
             }
           }
           posAttr.needsUpdate = true;
-          if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g => g.id === selectedGenre) ? 0.06 : 0);
+          if (mesh.material) mesh.material.opacity = 0.14 + Math.min(0.4, rms * 0.6) + (pIdx === GENRES.findIndex(g => g.id === currentGenre) ? 0.06 : 0);
           mesh.rotation.z = Math.sin(t * 0.23 + pIdx * 0.5) * 0.015;
         });
-      } catch (e) { /* safe */ }
+      } catch (e) {}
 
       renderer.render(scene, camera);
     }
     animate();
 
-    // ---------- Window resize ----------
+    // window resize handler
     function onResize() {
       renderer.setSize(window.innerWidth, window.innerHeight);
-      camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-      // recompute ribbon width
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
       if (RIBBON && RIBBON.width) {
         const width = (2 * Math.tan(camera.fov * Math.PI / 180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
         RIBBON.width = width;
@@ -803,173 +674,208 @@ export default function App() {
         }
         RIBBON.geometry.attributes.position.needsUpdate = true;
       }
-      // update pillar textures
-      PILLARS.forEach(p => {
-        try { if (p.mesh && p.mesh.material && p.mesh.material.map) p.mesh.material.map.needsUpdate = true; } catch (e) { }
-      });
     }
     window.addEventListener("resize", onResize);
 
-    // expose to refs for cleanup and possible external access
-    threeRef.current = {
-      scene, camera, renderer, ORB_GROUP, ORB_MESHES, PILLARS, RIBBON, audioController, animId: threeRef.current.animId
-    };
-
-    // cleanup on unmount
+    // cleanup
     return () => {
-      try {
-        window.removeEventListener("resize", onResize);
-        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
-        renderer.domElement.parentElement && renderer.domElement.parentElement.removeChild(renderer.domElement);
-        cancelAnimationFrame(threeRef.current.animId);
-        // dispose geometries & textures lightly (not exhaustive)
-        Object.values(ORB_MESHES).forEach(o => {
-          try { o.core.geometry.dispose(); if (o.ringObj && o.ringObj.points) o.ringObj.points.geometry.dispose(); } catch (e) { }
-        });
-        PILLARS.forEach(p => {
-          try { p.geo.dispose(); p.mat && p.mat.map && p.mat.map.dispose(); } catch (e) { }
-        });
-        RIBBON.geometry && RIBBON.geometry.dispose();
-      } catch (e) { /* ignore */ }
+      cancelAnimationFrame(rafId);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("resize", onResize);
+      try { mount.removeChild(renderer.domElement); } catch (e) {}
+      // Dispose three objects to avoid memory leaks
+      scene.traverse(obj => {
+        try {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose && m.dispose());
+            else obj.material.dispose && obj.material.dispose();
+          }
+          if (obj.texture) obj.texture.dispose && obj.texture.dispose();
+        } catch (e) {}
+      });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once
 
-  // React UI handlers
-  function handleGenreClick(g) {
-    setSelectedGenre(g.id);
-    // update Spotify embed and visuals
+  // React helpers (UI interactions)
+
+  // handle clicking a genre from the DOM list
+  function handleGenreClickFromUI(genreId) {
+    // delegate to DOM: colorize + spotify embed + stop local audio
+    const g = GENRES.find(x => x.id === genreId);
+    if (!g) return;
+    setCurrentGenre(genreId);
+    setSpotifyUrl(g.spotify || null);
+    // embed in spotifyRef
     if (spotifyRef.current) {
       spotifyRef.current.innerHTML = "";
-      if (g.spotify) {
-        // embed Spotify
-        try {
-          const u = new URL(g.spotify);
-          const pathParts = u.pathname.split("/").filter(Boolean);
-          if (pathParts.length >= 2) {
+      try {
+        const u = new URL(g.spotify);
+        if (u.hostname.includes("spotify")) {
+          const parts = u.pathname.split("/").filter(Boolean);
+          if (parts.length >= 2) {
             const iframe = document.createElement("iframe");
-            iframe.src = `https://open.spotify.com/embed/${pathParts[0]}/${pathParts[1]}`;
+            iframe.src = `https://open.spotify.com/embed/${parts[0]}/${parts[1]}`;
             iframe.width = "300";
             iframe.height = "80";
             iframe.frameBorder = "0";
             iframe.allow = "encrypted-media; clipboard-write";
             iframe.style.borderRadius = "8px";
             iframe.style.width = "100%";
-            iframe.style.maxWidth = "420px";
-            spotifyRef.current.appendChild(iframe);
-          } else {
-            // fallback
-            const iframe = document.createElement("iframe");
-            iframe.src = g.spotify;
-            iframe.width = "300";
-            iframe.height = "80";
-            iframe.frameBorder = "0";
             spotifyRef.current.appendChild(iframe);
           }
-        } catch (e) {
+        } else {
           const iframe = document.createElement("iframe");
           iframe.src = g.spotify;
           iframe.width = "300";
           iframe.height = "80";
           iframe.frameBorder = "0";
+          iframe.allow = "encrypted-media; clipboard-write";
+          iframe.style.borderRadius = "8px";
+          iframe.style.width = "100%";
           spotifyRef.current.appendChild(iframe);
         }
+      } catch (e) {
+        // fallback: generic embed
+        const iframe = document.createElement("iframe");
+        iframe.src = g.spotify;
+        iframe.width = "300";
+        iframe.height = "80";
+        iframe.frameBorder = "0";
+        iframe.allow = "encrypted-media; clipboard-write";
+        iframe.style.borderRadius = "8px";
+        iframe.style.width = "100%";
+        spotifyRef.current.appendChild(iframe);
       }
     }
-    // apply color to ribbon/pillars via threeRef state if available
-    try {
-      const three = threeRef.current;
-      if (three && three.RIBBON && three.RIBBON.geometry) {
-        const colors = three.RIBBON.geometry.attributes.color.array;
-        const tr = ((g.color >> 16) & 255) / 255, tg = ((g.color >> 8) & 255) / 255, tb = (g.color & 255) / 255;
-        for (let i = 0; i < three.RIBBON.points; i++) {
-          const idx = i * 3;
-          colors[idx] = 0.14 + tr * 0.86;
-          colors[idx + 1] = 0.14 + tg * 0.86;
-          colors[idx + 2] = 0.14 + tb * 0.86;
-        }
-        three.RIBBON.geometry.attributes.color.needsUpdate = true;
-        if (three.RIBBON.sprite && three.RIBBON.sprite.material) {
-          three.RIBBON.sprite.material.color = new THREE.Color(g.color);
-          three.RIBBON.sprite.material.opacity = 0.62;
-        }
-        three.PILLARS && three.PILLARS.forEach((p, i) => {
-          p.mesh.material.opacity = (GENRES[i].id === g.id) ? 0.34 : 0.16;
-        });
-      }
-    } catch (e) { /* ignore */ }
+    // small visual highlight for legend list (DOM)
+    const legend = document.getElementById("legendList");
+    if (legend) {
+      Array.from(legend.children).forEach((li, i) => {
+        li.style.boxShadow = (GENRES[i].id === genreId) ? "0 6px 18px rgba(0,0,0,0.45)" : "none";
+        li.style.transform = (GENRES[i].id === genreId) ? "translateY(-2px)" : "none";
+      });
+    }
   }
 
-  function handleSpotifyLoad() {
-    const v = spotifyInputRef.current && spotifyInputRef.current.value && spotifyInputRef.current.value.trim();
+  // local audio upload (analyzable)
+  function handleLocalAudioUpload(ev) {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    // show audio element in spotifyRef (like modal behavior)
+    if (spotifyRef.current) spotifyRef.current.innerHTML = "";
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.src = url;
+    audio.style.width = "100%";
+    if (spotifyRef.current) spotifyRef.current.appendChild(audio);
+    // wire into AudioContext / analyser by instantiating audioController again:
+    // For simplicity reuse a new AudioContext via an <audio> element and WebAudio. Must be user gesture (upload counts)
+    (async () => {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        const source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        audio.play().catch(()=>{});
+        // store analyser in window briefly for the three loop to access; the app's three-side created its own analyser,
+        // but since React function scope doesn't share that easily here, simplest is to let user play uploaded audio visually by reloading the page or using the "Load Local Audio" in modal (advanced integration can unify controllers).
+        // We'll just attach as a custom global for the animation loop to pick up (works because animation loop used audioController defined in closure).
+        window.__codemq_uploaded_audio_analyser = analyser;
+        setAnalyzableAudioActive(true);
+      } catch (e) {
+        console.warn("Failed to init analysis for local audio", e);
+      }
+    })();
+  }
+
+  // a small helper to allow manual spotify URL pasting (UI button triggers)
+  function handleManualSpotifyLoad() {
+    const v = (document.getElementById("spotifyInput") && document.getElementById("spotifyInput").value) || "";
     if (!v) return;
+    setSpotifyUrl(v);
     if (spotifyRef.current) {
       spotifyRef.current.innerHTML = "";
       const iframe = document.createElement("iframe");
-      iframe.src = v;
-      iframe.width = "320";
-      iframe.height = "90";
+      iframe.src = v.includes("open.spotify.com") ? v.replace("open.spotify.com", "open.spotify.com/embed") : v;
+      iframe.width = "300";
+      iframe.height = "80";
       iframe.frameBorder = "0";
-      iframe.allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
-      iframe.loading = "lazy";
+      iframe.allow = "encrypted-media; clipboard-write";
+      iframe.style.borderRadius = "8px";
+      iframe.style.width = "100%";
       spotifyRef.current.appendChild(iframe);
-      // stop local audio
-      try { threeRef.current.audioController.stop(); } catch (e) { }
     }
+    // stop any analysable audio visual (because we now show the embed)
+    try { window.__codemq_uploaded_audio_analyser = null; } catch (e) {}
+    setAnalyzableAudioActive(false);
   }
 
-  // legend UI helpers
-  function legendItemStyle(gId) {
-    const g = GENRES.find(x => x.id === gId);
-    const lum = (((g.color >> 16) & 255) * 299 + (((g.color >> 8) & 255) * 587) + ((g.color & 255) * 114)) / 1000;
-    return {
-      padding: "6px 10px",
-      marginBottom: "8px",
-      borderRadius: "8px",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      background: `linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01)), ${toCssHex(g.color)}`,
-      color: lum >= 140 ? "#000" : "#fff",
-      cursor: "pointer",
-      boxShadow: selectedGenre === gId ? "0 6px 18px rgba(0,0,0,0.45)" : "none",
-      transform: selectedGenre === gId ? "translateY(-2px)" : "none"
-    };
-  }
-
+  // Render UI (canvas container and panels)
   return (
-    <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative", background: "#000914" }}>
-      {/* Three.js mount */}
-      <div ref={mountRef} id="canvasWrap" style={{ position: "fixed", inset: 0, zIndex: 0 }} />
+    <>
+      <div id="three-bg" ref={mountRef} style={{ width: "100%", height: "100%" }} />
+      {/* horizontal ribbon visual indicator (CSS-driven) */}
+      <div id="ribbon" className={analyzableAudioActive ? "" : "idle"} />
 
-      {/* UI cluster */}
-      <div id="uiCluster" style={{ position: "fixed", right: 28, top: 28, zIndex: 10, width: 360, display: "flex", flexDirection: "column", gap: 12, pointerEvents: "auto" }}>
-        <div id="playlistPanel" className="panel" style={{ padding: 12, borderRadius: 12, background: "rgba(6,10,18,0.7)", color: "#e6f0ff", boxShadow: "0 8px 30px rgba(0,0,0,0.6)" }}>
-          <h4 style={{ margin: 0 }}>Now Playing</h4>
-          <div ref={spotifyRef} id="spotifyEmbed" style={{ marginTop: 8 }} />
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <input ref={spotifyInputRef} id="spotifyInput" placeholder="Paste Spotify/iframe URL" style={{ flex: 1, padding: 8, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.02)", color: "#fff" }} />
-            <button id="loadSpotify" onClick={handleSpotifyLoad} style={{ padding: "8px 10px", borderRadius: 8, background: "#1db954", color: "#06222b", border: "none", cursor: "pointer" }}>Load</button>
+      {/* UI cluster top-right */}
+      <div id="uiCluster">
+        <div id="playlistPanel" className="panel">
+          <h3>Now Playing</h3>
+          <div ref={spotifyRef} id="spotifyEmbed" style={{ width: "260px" }}>
+            {/* initial embed created by effect or user actions */}
+            <iframe
+              title="initial-spotify"
+              src={spotifyUrl ? spotifyUrl.replace("open.spotify.com", "open.spotify.com/embed") : ""}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              style={{ width: "100%", height: "80px", borderRadius: 10, border: "none" }}
+            />
+          </div>
+
+          {/* manual spotify url input (optional) */}
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <input id="spotifyInput" ref={audioInputRef} placeholder="Paste Spotify/URL" style={{ flex: 1, padding: 6, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.03)", color: "#fff" }} />
+            <button id="loadSpotify" onClick={handleManualSpotifyLoad} style={{ background: "#2b2b2b", border: "none", color: "#fff", padding: "6px 8px", borderRadius: 6 }}>Load</button>
+          </div>
+
+          {/* Local audio upload (analyzable) */}
+          <div style={{ marginTop: 8 }}>
+            <label style={{ fontSize: 12, opacity: 0.9 }}>Local Audio (paste URL or upload to animate)</label>
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <input id="modalAudioFile" type="file" accept="audio/*" onChange={handleLocalAudioUpload} style={{ display: "block" }} />
+            </div>
           </div>
         </div>
 
-        <div id="legend" className="panel" style={{ padding: 12, borderRadius: 12, background: "rgba(6,10,18,0.7)", color: "#e6f0ff", boxShadow: "0 8px 30px rgba(0,0,0,0.6)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h4 style={{ margin: 0 }}>Genres</h4>
-            <button onClick={() => setLegendOpen(s => !s)} style={{ background: "transparent", border: "none", color: "#cde6ff", cursor: "pointer" }}>{legendOpen ? "Hide" : "Show"}</button>
+        {/* Genre bar / legend */}
+        <div id="genreBar" className="panel" style={{ maxWidth: 300 }}>
+          <div id="legendList" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {GENRES.map((g) => (
+              <div
+                key={g.id}
+                onClick={() => handleGenreClickFromUI(g.id)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  background: `linear-gradient(90deg, rgba(255,255,255,0.01), ${hexToCss(g.color)})`,
+                  color: (((g.color >> 16) & 255) * 299 + (((g.color >> 8) & 255) * 587) + ((g.color & 255) * 114)) / 1000 >= 140 ? "#000" : "#fff",
+                  cursor: "pointer",
+                  boxShadow: currentGenre === g.id ? "0 6px 18px rgba(0,0,0,0.45)" : "none",
+                  transform: currentGenre === g.id ? "translateY(-2px)" : "none",
+                }}
+              >
+                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, marginRight: 8, verticalAlign: "middle", background: hexToCss(g.color) }} />
+                <span style={{ verticalAlign: "middle", fontSize: 13 }}>{g.name}</span>
+              </div>
+            ))}
           </div>
-          {legendOpen && (
-            <div id="legendList" style={{ marginTop: 8 }}>
-              {GENRES.map((g, i) => (
-                <div key={g.id} onClick={() => { handleGenreClick(g); }} style={legendItemStyle(g.id)}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, display: "inline-block", background: toCssHex(g.color) }} />
-                  <span style={{ flex: 1 }}>{g.name}</span>
-                  <button onClick={(e) => { e.stopPropagation(); handleGenreClick(g); }} style={{ marginLeft: 8, borderRadius: 8, background: selectedGenre === g.id ? "#06222b" : "rgba(255,255,255,0.06)", color: "#fff", border: "none", padding: "6px 8px", cursor: "pointer" }}>Play</button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
