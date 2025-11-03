@@ -47,15 +47,15 @@
   </div>
 
   <script>
-    // --- Genre to Spotify playlist mapping ---
+    // --- Genre to Spotify playlist mapping (playlist IDs only) ---
     const genrePlaylists = {
-      "hard-techno": "https://open.spotify.com/playlist/37i9dQZF1DWXCzcvFxzeno?si=9db25f14ec324a14", // Hard Techno
-      "techno": "https://open.spotify.com/playlist/18vUeZ9BdtMRNV6gI8RnR6?si=a18b954dcac94a33", // Techno 
-      "drum-and-bass": "https://open.spotify.com/playlist/37i9dQZF1EIherXksVvnrN?si=a72eb389630441a3", // DnB 
-      "dubstep": "https://open.spotify.com/playlist/37i9dQZF1EIecXBS1w2psY?si=f131441becc24b76", // Dubstep Don
-      "electronic-dance": "https://open.spotify.com/playlist/37i9dQZF1DX4dyzvuaRJ0n?si=d3cd7a7ae4e74de4", // Dance 
-      "house": "https://open.spotify.com/playlist/37i9dQZF1EIdDyy28MYSyS?si=366e76b5263d4062", // House 
-      "pop-international": "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=476ef7ba464243cb" // Global Top 50
+      "hard-techno": "37i9dQZF1DWXCzcvFxzeno",
+      "techno": "18vUeZ9BdtMRNV6gI8RnR6",
+      "drum-and-bass": "37i9dQZF1EIherXksVvnrN",
+      "dubstep": "37i9dQZF1EIecXBS1w2psY",
+      "electronic-dance": "37i9dQZF1DX4dyzvuaRJ0n",
+      "house": "37i9dQZF1EIdDyy28MYSyS",
+      "pop-international": "37i9dQZEVXbMDoHDwVN2tF"
     };
 
     const genreSpans = document.querySelectorAll('#genreBar span');
@@ -67,8 +67,16 @@
         span.classList.add('active');
 
         const genre = span.dataset.genre;
-        const newSrc = genrePlaylists[genre];
+        const playlistId = genrePlaylists[genre];
+        const newSrc = `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`;
+
+        // Update player source
         spotifyPlayer.src = newSrc;
+
+        // Match genre highlight color
+        const color = span.style.color;
+        document.querySelector('#playlistPanel h3').style.color = color;
+        document.querySelector('#playlistPanel').style.boxShadow = `0 0 20px ${color}`;
       });
     });
   </script>
