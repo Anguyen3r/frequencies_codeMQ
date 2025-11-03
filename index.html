@@ -2,150 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — Music System</title>
+  <title>Dream Bubbles — SoundCloud System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Three.js (kept for non-bundled envs) -->
+  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <!-- 3D canvas wrap (app.js will append renderer.domElement here) -->
-  <div id="canvasWrap"></div>
-
-  <!-- Horizontal ribbon (CSS-driven & also used visually by three) -->
+  <!-- 3D canvas and ribbon -->
+  <canvas id="canvas"></canvas>
   <div id="ribbon" class="idle"></div>
 
   <!-- Top-right UI cluster -->
   <div id="uiCluster">
-    <!-- Playlist (Spotify embed container — app.js injects the correct embed there) -->
+    <!-- Playlist -->
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
-      <div id="spotifyEmbed" style="width:100%;">
-        <!-- Default/fallback embed (will be replaced when a genre is selected) -->
-        <iframe
-          title="default-spotify"
-          src="https://open.spotify.com/embed/playlist/37i9dQZF1DX8tZsk68tuDw"
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          loading="lazy"
-          style="width:100%;height:120px;border-radius:10px;border:none"
-        ></iframe>
-      </div>
-
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-        <label style="font-size:12px;opacity:0.9">Load local audio</label>
-        <input id="localAudioFile" type="file" accept="audio/*" style="margin-left:auto" />
-      </div>
-
-      <div style="margin-top:8px;">
-        <input id="localAudioUrl" placeholder="Paste MP3/ogg URL + Enter" style="width:100%;padding:6px 8px;border-radius:8px;border:none;background:rgba(255,255,255,0.03);color:#fff" />
-      </div>
+      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
+        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
+      </iframe>
     </div>
 
-    <!-- Genre panel — 7 genres exactly as in app.js -->
+    <!-- Genre bar (corrected 7 genres) -->
     <div id="genrePanel" class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:13px">Genres</strong>
-        <small style="opacity:0.8">7 options</small>
-      </div>
-
-      <div id="genreBar" style="display:flex;flex-wrap:wrap;gap:8px;">
-        <!-- IDs / data-genre must match GENRES in app.js -->
-        <button class="genreBtn" data-genre="hard-techno" style="--gcolor:#ff2b6a">
-          <span class="swatch" style="background:#ff2b6a"></span>
-          <span>Hard Techno</span>
-        </button>
-
-        <button class="genreBtn" data-genre="techno" style="--gcolor:#8a5fff">
-          <span class="swatch" style="background:#8a5fff"></span>
-          <span>Techno</span>
-        </button>
-
-        <button class="genreBtn" data-genre="house" style="--gcolor:#ff9b3f">
-          <span class="swatch" style="background:#ff9b3f"></span>
-          <span>House</span>
-        </button>
-
-        <button class="genreBtn" data-genre="dnb" style="--gcolor:#4cff7b">
-          <span class="swatch" style="background:#4cff7b"></span>
-          <span>Drum & Bass</span>
-        </button>
-
-        <button class="genreBtn" data-genre="dubstep" style="--gcolor:#5fc9ff">
-          <span class="swatch" style="background:#5fc9ff"></span>
-          <span>Dubstep</span>
-        </button>
-
-        <button class="genreBtn" data-genre="electronic" style="--gcolor:#3f7bff">
-          <span class="swatch" style="background:#3f7bff"></span>
-          <span>Electronic / Dance</span>
-        </button>
-
-        <button class="genreBtn" data-genre="pop" style="--gcolor:#ff89d9">
-          <span class="swatch" style="background:#ff89d9"></span>
-          <span>Pop / International</span>
-        </button>
+      <div id="genreBar">
+        <span data-genre="hard-techno" style="color:#ff2b6a;">Hard Techno</span>
+        <span data-genre="techno" style="color:#00ffff;">Techno</span>
+        <span data-genre="house" style="color:#ffff00;">House</span>
+        <span data-genre="dnb" style="color:#4cff7b;">Drum & Bass</span>
+        <span data-genre="dubstep" style="color:#5fc9ff;">Dubstep</span>
+        <span data-genre="electronic" style="color:#3f7bff;">Electronic / Dance</span>
+        <span data-genre="pop" style="color:#ff77ff;">Pop / International</span>
       </div>
     </div>
   </div>
 
-  <!-- App script (your integrated app.js) -->
   <script src="app.js"></script>
-
-  <script>
-    // small DOM hookup to match app.js expectations:
-    // - connect local file/url UI to the functions app.js exposes via globals (if app.js uses global handlers).
-    // If app.js is modular and exposes functions, you'll wire them up there instead. This small block will:
-    //   - route clicks on genre buttons to the page-level `playGenreAudio` function found in app.js (global) OR dispatch a custom event that app.js listens to.
-    // The integrated app.js you provided expects clicks on orbs and UI elements; if playGenreAudio is in global scope, we call it.
-    (function(){
-      function tryCallPlay(genreId){
-        // try global function first
-        if (typeof playGenreAudio === 'function') { playGenreAudio(genreId); return; }
-        // otherwise dispatch a CustomEvent that your app.js can listen for
-        window.dispatchEvent(new CustomEvent('codemq_select_genre', { detail: { genreId } }));
-      }
-
-      document.querySelectorAll('.genreBtn').forEach(btn=>{
-        btn.addEventListener('click', ()=> {
-          const genre = btn.getAttribute('data-genre');
-          // visual active state
-          document.querySelectorAll('.genreBtn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          tryCallPlay(genre);
-        });
-      });
-
-      // file input + URL enter
-      const fileInput = document.getElementById('localAudioFile');
-      if (fileInput) fileInput.addEventListener('change', (ev) => {
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        if (typeof audioController !== 'undefined' && audioController.loadUrl) {
-          // audioController from your app.js
-          audioController.loadUrl(URL.createObjectURL(f), { loop: true });
-        } else {
-          // dispatch event
-          window.dispatchEvent(new CustomEvent('codemq_load_local_audio', { detail: { file: f } }));
-        }
-      });
-
-      const urlInput = document.getElementById('localAudioUrl');
-      if (urlInput) urlInput.addEventListener('keydown', (e)=>{
-        if (e.key === 'Enter') {
-          const v = e.target.value && e.target.value.trim();
-          if (!v) return;
-          if (typeof audioController !== 'undefined' && audioController.loadUrl) {
-            audioController.loadUrl(v, { loop: true });
-          } else {
-            window.dispatchEvent(new CustomEvent('codemq_load_local_audio', { detail: { url: v } }));
-          }
-          e.target.value = '';
-        }
-      });
-
-    })();
-  </script>
 </body>
 </html>
