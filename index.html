@@ -1,51 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Track Wave Visualizer</title>
-  <style>
-    html, body { margin:0; padding:0; overflow:hidden; background:#000; color:#fff; font-family:sans-serif; }
-    #ui, #legend, #leftPanel {
-      position:fixed; z-index:10; transition:opacity 0.6s;
-    }
-    #ui { top:10px; right:10px; background:rgba(0,0,0,0.45); padding:12px 16px; border-radius:10px; }
-    #legend { bottom:10px; left:10px; background:rgba(0,0,0,0.45); padding:10px; border-radius:8px; max-height:40vh; overflow:auto; }
-    #leftPanel { top:10px; left:10px; background:rgba(0,0,0,0.45); padding:12px; border-radius:10px; max-width:220px; }
-    #leftPanel.hidden { display:none; }
-    #spotifyEmbed iframe, #spotifyEmbed audio { width:100%; border-radius:8px; }
-    select, input, button { background:#111; color:#fff; border:1px solid #444; border-radius:5px; padding:6px 10px; margin-top:6px; width:100%; }
-    #legendList { list-style:none; padding:0; margin:0; }
-    .legend-row:hover { cursor:pointer; filter:brightness(1.2); }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Dream Bubbles — SoundCloud System</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <!-- Canvas holder -->
-  <div id="canvasWrap"></div>
+  <!-- 3D canvas and ribbon -->
+  <canvas id="canvas"></canvas>
+  <div id="ribbon" class="idle"></div>
 
-  <!-- Left control panel -->
-  <div id="leftPanel">
-    <button id="toggleTop">Toggle Top</button>
-    <h3>Genre Votes</h3>
-    <select id="genreSelect"></select>
-    <ul id="topList"></ul>
+  <!-- Top-right UI cluster -->
+  <div id="uiCluster">
+    <!-- Playlist (SoundCloud) -->
+    <div id="playlistPanel" class="panel">
+      <h3>Now Playing</h3>
+      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
+        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
+      </iframe>
+    </div>
+
+    <!-- Genre bar -->
+    <div id="genrePanel" class="panel">
+      <div id="genreBar">
+        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
+        <span data-genre="techno" style="color:#00ffff;">Techno</span>
+        <span data-genre="house" style="color:#ffff00;">House</span>
+        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
+        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
+      </div>
+    </div>
   </div>
 
-  <!-- Right UI panel -->
-  <div id="ui">
-    <label for="spotifyInput">Custom Spotify / Audio URL:</label>
-    <input id="spotifyInput" placeholder="Paste track or playlist link..." />
-    <button id="loadSpotify">Load</button>
-    <div id="spotifyEmbed"></div>
-  </div>
-
-  <!-- Legend -->
-  <div id="legend">
-    <ul id="legendList"></ul>
-  </div>
-
-  <!-- App -->
   <script src="app.js"></script>
 </body>
 </html>
