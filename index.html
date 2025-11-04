@@ -11,6 +11,18 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 
   <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      font-family: 'Inter', sans-serif;
+      color: white;
+    }
+
+    canvas {
+      display: block;
+    }
+
     /* === UI CLUSTER === */
     #uiCluster {
       position: fixed;
@@ -24,64 +36,97 @@
     }
 
     .panel {
+      position: relative;
       background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(12px);
-      border-radius: 16px;
+      backdrop-filter: blur(14px) saturate(160%);
+      border-radius: 20px;
       padding: 1rem;
-      color: white;
-      font-family: 'Inter', sans-serif;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    /* === Soft reflective sheen === */
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: radial-gradient(ellipse at top left,
+        rgba(255,255,255,0.08) 0%,
+        rgba(255,255,255,0.02) 30%,
+        transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(145deg,
+        rgba(255,255,255,0.05),
+        rgba(0,0,0,0.1) 60%,
+        transparent 100%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      z-index: 0;
     }
 
     /* === Spotify Player === */
-    #spotifyPlayer {
-      width: 300px;
-      height: 380px;
-      border: none;
-      border-radius: 12px;
+    #playlistPanel {
+      width: 340px;
     }
 
-    /* === Genre Bar === */
+    #spotifyPlayer {
+      width: 100%;
+      height: 420px;
+      border-radius: 14px;
+      border: none;
+    }
+
+    /* === Genre Panel === */
     #genrePanel {
+      width: 340px;
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      width: 320px;
+      justify-content: center;
     }
 
     #genreBar {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 0.4rem;
+      gap: 0.5rem;
+      width: 100%;
       justify-items: center;
     }
 
     #genreBar span {
-      padding: 0.4rem 0.8rem;
+      padding: 0.45rem 0.9rem;
       border-radius: 9999px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      font-size: 0.85rem;
       font-weight: 500;
-      border: 1px solid rgba(255,255,255,0.25);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.05);
       text-align: center;
       white-space: nowrap;
+      box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.08);
     }
 
     #genreBar span:hover,
     #genreBar span.active {
-      background-color: rgba(255,255,255,0.15);
+      background-color: rgba(255, 255, 255, 0.15);
       transform: scale(1.05);
     }
 
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-    }
-
-    canvas {
-      display: block;
+    /* Glow effect for balance */
+    #genreBar span.active {
+      box-shadow: 0 0 12px currentColor, inset 0 0 6px rgba(255,255,255,0.1);
     }
   </style>
 </head>
@@ -94,7 +139,7 @@
   <div id="uiCluster">
     <!-- Playlist (Spotify) -->
     <div id="playlistPanel" class="panel">
-      <h3 style="margin-top:0;">Now Playing</h3>
+      <h3 style="margin: 0 0 0.6rem 0; text-align:right;">Now Playing</h3>
       <iframe
         id="spotifyPlayer"
         src="https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
@@ -120,12 +165,12 @@
   <script>
     // --- Genre to Spotify playlist mapping ---
     const genrePlaylists = {
-      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?utm_source=generator", 
-      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator", 
-      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1EIdDyy28MYSyS?utm_source=generator", 
-      "drum-and-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1EIherXksVvnrN?utm_source=generator", 
-      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1EIecXBS1w2psY?utm_source=generator", 
-      "electronic-dance": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n?utm_source=generator", 
+      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?utm_source=generator",
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator",
+      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1EIdDyy28MYSyS?utm_source=generator",
+      "drum-and-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1EIherXksVvnrN?utm_source=generator",
+      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1EIecXBS1w2psY?utm_source=generator",
+      "electronic-dance": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n?utm_source=generator",
       "pop-international": "https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
     };
 
