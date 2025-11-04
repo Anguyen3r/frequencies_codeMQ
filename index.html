@@ -1,124 +1,78 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Dream Bubbles — Spotify System</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
+import React from "react";
+import "./index.css";
 
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+const genres = [
+  { name: "Hard Techno", color: "#ff3b3b", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX1lVhptIYRda?si=2acb8e9dbf114f4b" },
+  { name: "Techno", color: "#8b5cf6", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX6J5NfMJS675?si=693a6d883b2048bf" },
+  { name: "House", color: "#f59e0b", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX2TRYkJECvfC?si=a1d9b9b7f3bb4fa3" },
+  { name: "Drum and Bass", color: "#22c55e", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX6MuP5E8Kf2M?si=6a2b986e11df40f7" },
+  { name: "Dubstep", color: "#06b6d4", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX8wWHvPMMf8P?si=2fbdc3037e31471f" },
+  { name: "Electronic/Dance", color: "#2563eb", playlist: "https://open.spotify.com/playlist/37i9dQZF1DX8tZsk68tuDw?si=4ef1473b4428414a" },
+  { name: "Pop/International", color: "#ec4899", playlist: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=f4c94e4d3a2a45aa" },
+];
 
-  <style>
-    /* Refined Spotify panel visuals */
-    #playlistPanel iframe {
-      width: 300px;
-      height: 380px;
-      border-radius: 16px;
-      border: none;
-    }
+const Index = () => {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-4">
+      <h1 className="text-4xl font-bold mb-8">Genre Portal</h1>
 
-    #playlistPanel h3 {
-      margin-bottom: 10px;
-      font-size: 14px;
-      letter-spacing: 0.5px;
-      opacity: 0.9;
-      text-transform: uppercase;
-    }
+      {/* Genre Panel */}
+      <div className="flex flex-col gap-4 mb-10">
+        <div className="flex flex-wrap justify-center gap-4">
+          {genres.slice(0, 4).map((genre) => (
+            <a
+              key={genre.name}
+              href={genre.playlist}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2 rounded-full font-medium text-sm transition-transform transform hover:scale-105"
+              style={{
+                backgroundColor: genre.color,
+                boxShadow: `0 0 12px ${genre.color}70`,
+              }}
+            >
+              {genre.name}
+            </a>
+          ))}
+        </div>
+        <div className="flex flex-wrap justify-center gap-4">
+          {genres.slice(4).map((genre) => (
+            <a
+              key={genre.name}
+              href={genre.playlist}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2 rounded-full font-medium text-sm transition-transform transform hover:scale-105"
+              style={{
+                backgroundColor: genre.color,
+                boxShadow: `0 0 12px ${genre.color}70`,
+              }}
+            >
+              {genre.name}
+            </a>
+          ))}
+        </div>
+      </div>
 
-    /* Genre bar alignment and spacing */
-    #genreBar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: flex-start;
-      margin-top: 10px;
-    }
-    #genreBar span {
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.8em;
-      background: rgba(255,255,255,0.08);
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    #genreBar span.active {
-      background: rgba(255,255,255,0.18);
-      box-shadow: 0 0 12px currentColor;
-      transform: scale(1.1);
-    }
-
-    @media (max-width: 760px) {
-      #playlistPanel iframe {
-        width: 85vw;
-        height: 340px;
-      }
-      #genreBar {
-        justify-content: center;
-      }
-    }
-  </style>
-</head>
-<body>
-  <!-- 3D canvas and ribbon -->
-  <canvas id="canvas"></canvas>
-  <div id="ribbon" class="idle"></div>
-
-  <!-- Top-right UI cluster -->
-  <div id="uiCluster">
-    <!-- Playlist (Spotify) -->
-    <div id="playlistPanel" class="panel">
-      <h3>Now Playing</h3>
-      <iframe
-        id="spotifyPlayer"
-        src="https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy">
-      </iframe>
-    </div>
-
-    <!-- Genre bar -->
-    <div id="genrePanel" class="panel">
-      <div id="genreBar">
-        <span data-genre="hard-techno" style="color:#ff0040;">Hard Techno</span>
-        <span data-genre="techno" style="color:#00ffff;">Techno</span>
-        <span data-genre="house" style="color:#00aaff;">House</span>
-        <span data-genre="drum-and-bass" style="color:#00ff66;">Drum & Bass</span>
-        <span data-genre="dubstep" style="color:#ff8800;">Dubstep</span>
-        <span data-genre="electronic-dance" style="color:#ffee00;">Electronic/Dance</span>
-        <span data-genre="pop-international" style="color:#ff77ff;">Pop/International</span>
+      {/* Bubbles */}
+      <div className="relative flex flex-wrap justify-center gap-6 max-w-4xl">
+        {genres.map((genre, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-center text-sm font-semibold rounded-full transition-transform transform hover:scale-110"
+            style={{
+              backgroundColor: `${genre.color}`,
+              width: "110px",
+              height: "110px",
+              boxShadow: `0 0 20px ${genre.color}70`,
+            }}
+          >
+            {genre.name}
+          </div>
+        ))}
       </div>
     </div>
-  </div>
+  );
+};
 
-  <script>
-    // --- Genre to Spotify playlist mapping ---
-    const genrePlaylists = {
-      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?utm_source=generator", // Hard Techno
-      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator", // Techno (updated)
-      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1EIdDyy28MYSyS?utm_source=generator", // House
-      "drum-and-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1EIherXksVvnrN?utm_source=generator", // Drum & Bass
-      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1EIecXBS1w2psY?utm_source=generator", // Dubstep Don
-      "electronic-dance": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4dyzvuaRJ0n?utm_source=generator", // Dance
-      "pop-international": "https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator" // Global Top 50
-    };
-
-    const genreSpans = document.querySelectorAll('#genreBar span');
-    const spotifyPlayer = document.getElementById('spotifyPlayer');
-
-    genreSpans.forEach(span => {
-      span.addEventListener('click', () => {
-        genreSpans.forEach(s => s.classList.remove('active'));
-        span.classList.add('active');
-
-        const genre = span.dataset.genre;
-        const newSrc = genrePlaylists[genre];
-        spotifyPlayer.src = newSrc;
-      });
-    });
-  </script>
-
-  <script src="app.js"></script>
-</body>
-</html>
+export default Index;
