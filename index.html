@@ -24,7 +24,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 0;
+      z-index: 0; /* stays behind */
     }
 
     #uiCluster {
@@ -35,7 +35,7 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 16px;
-      z-index: 5;
+      z-index: 10; /* bring front */
     }
 
     .panel {
@@ -45,31 +45,25 @@
       padding: 12px;
       box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
       width: 420px;
-    }
-
-    /* Playlist Panel */
-    #playlistPanel {
       position: relative;
       overflow: hidden;
     }
 
+    /* Spotify panel + crossfade */
     #playlistPanel iframe {
       width: 100%;
       height: 550px;
       border-radius: 12px;
       opacity: 1;
       transition: opacity 1s ease-in-out;
-      position: absolute;
-      top: 0;
-      left: 0;
+      position: relative;
     }
 
     #playlistPanel iframe.fade-out {
       opacity: 0;
-      pointer-events: none;
     }
 
-    /* Genre Panel */
+    /* Genre panel */
     #genrePanel {
       display: flex;
       justify-content: center;
@@ -99,14 +93,14 @@
       background: rgba(255, 255, 255, 0.25);
     }
 
-    /* Genre Colors (matching bubble order) */
-    #genreBar span[data-genre="hard-techno"] { color: #ff3399; } /* red-magenta */
-    #genreBar span[data-genre="techno"] { color: #aa66ff; } /* purple */
-    #genreBar span[data-genre="house"] { color: #ff9900; } /* orange */
-    #genreBar span[data-genre="drum-bass"] { color: #33cc33; } /* green */
-    #genreBar span[data-genre="dubstep"] { color: #00ffff; } /* cyan */
-    #genreBar span[data-genre="electronic"] { color: #3366ff; } /* sapphire */
-    #genreBar span[data-genre="pop"] { color: #ff77ff; } /* pink */
+    /* Bubble color mapping */
+    #genreBar span[data-genre="hard-techno"] { color: #ff3399; }
+    #genreBar span[data-genre="techno"] { color: #aa66ff; }
+    #genreBar span[data-genre="house"] { color: #ff9900; }
+    #genreBar span[data-genre="drum-bass"] { color: #33cc33; }
+    #genreBar span[data-genre="dubstep"] { color: #00ffff; }
+    #genreBar span[data-genre="electronic"] { color: #3366ff; }
+    #genreBar span[data-genre="pop"] { color: #ff77ff; }
   </style>
 </head>
 
@@ -114,16 +108,15 @@
   <canvas id="canvas"></canvas>
 
   <div id="uiCluster">
-    <!-- Playlist Panel -->
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
       <iframe id="spotifyPlayer"
         src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator"
-        frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        frameBorder="0"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy"></iframe>
     </div>
 
-    <!-- Genre Panel -->
     <div id="genrePanel" class="panel">
       <div id="genreBar">
         <span data-genre="hard-techno">Hard Techno</span>
@@ -138,6 +131,7 @@
   </div>
 
   <script>
+    // Match playlists to genres
     const playlistMap = {
       "hard-techno": "https://open.spotify.com/embed/playlist/6kA6f1C5rITf7k7w1oBGVv",
       "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675",
@@ -158,23 +152,27 @@
         if (isTransitioning || btn.dataset.genre === currentGenre) return;
         isTransitioning = true;
 
-        // Update active class
+        // Update active pill
         genreButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // Fade out current iframe
+        // Fade out current
         spotifyPlayer.classList.add('fade-out');
 
         setTimeout(() => {
-          // Update the source
           spotifyPlayer.src = playlistMap[btn.dataset.genre];
           currentGenre = btn.dataset.genre;
-          // Fade back in
+
           spotifyPlayer.classList.remove('fade-out');
           isTransitioning = false;
-        }, 800);
+        }, 1000);
       });
     });
+
+    // Set Techno active by default
+    document.querySelector('[data-genre="techno"]').classList.add('active');
   </script>
+
+  <script src="app.js"></script>
 </body>
 </html>
