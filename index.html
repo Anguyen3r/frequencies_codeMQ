@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — Spotify System</title>
+  <title>Dream Bubbles — SoundCloud System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
@@ -21,8 +22,8 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
       z-index: 0;
     }
 
@@ -34,7 +35,7 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 16px;
-      z-index: 10;
+      z-index: 5;
     }
 
     .panel {
@@ -46,6 +47,7 @@
       width: 420px;
     }
 
+    /* Playlist Panel */
     #playlistPanel {
       position: relative;
       overflow: hidden;
@@ -53,7 +55,7 @@
 
     #playlistPanel iframe {
       width: 100%;
-      height: 500px;
+      height: 550px;
       border-radius: 12px;
       opacity: 1;
       transition: opacity 1s ease-in-out;
@@ -67,6 +69,7 @@
       pointer-events: none;
     }
 
+    /* Genre Panel */
     #genrePanel {
       display: flex;
       justify-content: center;
@@ -96,7 +99,7 @@
       background: rgba(255, 255, 255, 0.25);
     }
 
-    /* Genre colors (bubble order) */
+    /* Genre Colors (matching bubble order) */
     #genreBar span[data-genre="hard-techno"] { color: #ff3399; } /* red-magenta */
     #genreBar span[data-genre="techno"] { color: #aa66ff; } /* purple */
     #genreBar span[data-genre="house"] { color: #ff9900; } /* orange */
@@ -111,6 +114,7 @@
   <canvas id="canvas"></canvas>
 
   <div id="uiCluster">
+    <!-- Playlist Panel -->
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
       <iframe id="spotifyPlayer"
@@ -119,6 +123,7 @@
         loading="lazy"></iframe>
     </div>
 
+    <!-- Genre Panel -->
     <div id="genrePanel" class="panel">
       <div id="genreBar">
         <span data-genre="hard-techno">Hard Techno</span>
@@ -133,15 +138,14 @@
   </div>
 
   <script>
-    // Verified embed URLs
     const playlistMap = {
-      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?utm_source=generator",
-      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator",
-      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1EIdDyy28MYSyS?utm_source=generator",
-      "drum-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1DWY7IeIP1cdjF?utm_source=generator",
-      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1DX3wrUByzcxRT?utm_source=generator",
-      "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DX0BcQWzuB7ZO?utm_source=generator",
-      "pop": "https://open.spotify.com/embed/playlist/37i9dQZEVXbMDoHDwVN2tF?utm_source=generator"
+      "hard-techno": "https://open.spotify.com/embed/playlist/6kA6f1C5rITf7k7w1oBGVv",
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675",
+      "house": "https://open.spotify.com/embed/playlist/37i9dQZF1DWVY4eLfA3XFQ",
+      "drum-bass": "https://open.spotify.com/embed/playlist/37i9dQZF1DX8mBRYewE6or",
+      "dubstep": "https://open.spotify.com/embed/playlist/37i9dQZF1DX3wrUByzcxRT",
+      "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DX0BcQWzuB7ZO",
+      "pop": "https://open.spotify.com/embed/playlist/37i9dQZF1DX0XUsuxWHRQd"
     };
 
     const genreButtons = document.querySelectorAll('#genreBar span');
@@ -154,21 +158,23 @@
         if (isTransitioning || btn.dataset.genre === currentGenre) return;
         isTransitioning = true;
 
+        // Update active class
         genreButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
+        // Fade out current iframe
         spotifyPlayer.classList.add('fade-out');
 
         setTimeout(() => {
+          // Update the source
           spotifyPlayer.src = playlistMap[btn.dataset.genre];
           currentGenre = btn.dataset.genre;
+          // Fade back in
           spotifyPlayer.classList.remove('fade-out');
           isTransitioning = false;
         }, 800);
       });
     });
   </script>
-
-  <script src="app.js"></script>
 </body>
 </html>
