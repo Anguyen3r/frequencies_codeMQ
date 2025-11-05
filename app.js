@@ -448,6 +448,42 @@ function initRibbon(){
   sprite.position.set(0, -8, -140);
   scene.add(sprite);
   // ---------- end glow replacement ----------
+   
+// ---------- Ribbon update integration ----------
+let ribbonLine = null;
+
+function finalizeRibbon(line, positions, colors) {
+  RIBBON.line = line;
+  RIBBON.positions = positions;
+  RIBBON.colors = colors;
+}
+
+function updateRibbon() {
+  if (!RIBBON.line || !audioController.isActive()) return;
+
+  const amps = audioController.getAmps();
+  if (!amps) return;
+  const { rawFreq } = amps;
+  const pos = RIBBON.positions.array;
+  const col = RIBBON.colors.array;
+
+  for (let i = 0; i < rawFreq.length && i < pos.length / 3; i++) {
+    const amp = rawFreq[i] / 255;
+    const y = Math.sin(i * 0.15) * 10 + amp * 80;
+    pos[i * 3 + 1] = y;
+    col[i * 3] = 0.6 + amp * 0.4;
+    col[i * 3 + 1] = 0.4 + amp * 0.3;
+    col[i * 3 + 2] = 1.0;
+  }
+
+  RIBBON.positions.needsUpdate = true;
+  RIBBON.colors.needsUpdate = true;
+}
+
+// attach the line when created
+const line = new THREE.Line(geometry, mat);
+finalizeRibbon(line, geometry.getAttribute('position'), geometry.getAttribute('color'));
+scene.add(line);
 
   const prevY = new Float32Array(POINTS);
   for (let i=0;i<POINTS;i++) prevY[i] = positions[i*3+1];
@@ -1037,3 +1073,12 @@ if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
 console.log('app.js loaded — full integration: smooth horizontal ribbon (audio-reactive), diagonal elliptical orbits, 7 genre pillars, Spotify embed integrated.');
+
+// ---------- Animate and render ----------
+function animate() {
+  requestAnimationFrame(animate);
+  updateRibbon(); // continuously make ribbon respond to sound
+  renderer.render(scene, camera);
+}
+animate();
+
