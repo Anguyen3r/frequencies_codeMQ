@@ -16,6 +16,7 @@
       overflow: hidden;
       color: white;
       font-family: "Inter", sans-serif;
+      transition: background 1.5s ease; /* Smooth ambient crossfade */
     }
 
     #canvas {
@@ -53,7 +54,7 @@
       height: 550px;
       border-radius: 12px;
       opacity: 1;
-      transition: opacity 0.8s ease;
+      transition: opacity 1.2s ease; /* Crossfade timing */
     }
 
     #playlistPanel iframe.fade-out {
@@ -90,14 +91,14 @@
       transform: scale(1.08);
     }
 
-    /* Correct bubble color order */
-    #genreBar span[data-genre="hard-techno"] { color: #ff3333; } /* red */
-    #genreBar span[data-genre="techno"] { color: #aa66ff; } /* purple */
-    #genreBar span[data-genre="house"] { color: #ff9900; } /* orange */
-    #genreBar span[data-genre="drum-bass"] { color: #33ff66; } /* green */
-    #genreBar span[data-genre="dubstep"] { color: #00ffff; } /* cyan */
-    #genreBar span[data-genre="electronic"] { color: #3366ff; } /* sapphire */
-    #genreBar span[data-genre="pop"] { color: #ff77ff; } /* pink */
+    /* Genre color mapping */
+    #genreBar span[data-genre="hard-techno"] { color: #ff3333; }
+    #genreBar span[data-genre="techno"] { color: #aa66ff; }
+    #genreBar span[data-genre="house"] { color: #ff9900; }
+    #genreBar span[data-genre="drum-bass"] { color: #33ff66; }
+    #genreBar span[data-genre="dubstep"] { color: #00ffff; }
+    #genreBar span[data-genre="electronic"] { color: #3366ff; }
+    #genreBar span[data-genre="pop"] { color: #ff77ff; }
   </style>
 </head>
 
@@ -109,7 +110,7 @@
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
       <iframe id="spotifyPlayer"
-        src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?utm_source=generator"
+        src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675"
         width="100%" height="550" frameborder="0"
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy"></iframe>
@@ -131,37 +132,53 @@
   <script src="app.js"></script>
 
   <script>
-    
     // --- Genre to Spotify playlist mapping ---
-const playlists = {
-  "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?si=bb214d2088554ffc",
-  "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?si=e45d85b3704b4f47",
-  "house": "https://open.spotify.com/embed/playlist/7bu7BZEusLNJSaAuUUZBKn?si=c2977c571b5f4c43",
-  "drum-bass": "https://open.spotify.com/embed/playlist/0g37FHWjuxodt8Auj096hA?si=300e0776ff9c4836",
-  "dubstep": "https://open.spotify.com/embed/playlist/3ObJ6Qra3CkV0gNCRTtK0c?si=719ed7039e5d4461",
-  "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DXa1pcUVlBhYz?si=0ede762f838f44d7",
-  "pop": "https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M"
-};
+    const playlists = {
+      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?si=bb214d2088554ffc",
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?si=e45d85b3704b4f47",
+      "house": "https://open.spotify.com/embed/playlist/7bu7BZEusLNJSaAuUUZBKn?si=c2977c571b5f4c43",
+      "drum-bass": "https://open.spotify.com/embed/playlist/0g37FHWjuxodt8Auj096hA?si=300e0776ff9c4836",
+      "dubstep": "https://open.spotify.com/embed/playlist/3ObJ6Qra3CkV0gNCRTtK0c?si=719ed7039e5d4461",
+      "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DXa1pcUVlBhYz?si=0ede762f838f44d7",
+      "pop": "https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M"
+    };
+
+    // --- Ambient background colors per genre ---
+    const genreBackgrounds = {
+      "hard-techno": "radial-gradient(circle at center, #330000 0%, #000 100%)",
+      "techno": "radial-gradient(circle at center, #2a0040 0%, #000 100%)",
+      "house": "radial-gradient(circle at center, #402000 0%, #000 100%)",
+      "drum-bass": "radial-gradient(circle at center, #004020 0%, #000 100%)",
+      "dubstep": "radial-gradient(circle at center, #003333 0%, #000 100%)",
+      "electronic": "radial-gradient(circle at center, #001a40 0%, #000 100%)",
+      "pop": "radial-gradient(circle at center, #400040 0%, #000 100%)"
+    };
 
     const genreSpans = document.querySelectorAll("#genreBar span");
     const player = document.getElementById("spotifyPlayer");
 
     genreSpans.forEach(span => {
       span.addEventListener("click", () => {
+        // Remove active from others
         genreSpans.forEach(s => s.classList.remove("active"));
         span.classList.add("active");
 
         const genre = span.getAttribute("data-genre");
         const url = playlists[genre];
+        const bg = genreBackgrounds[genre];
+
         if (url) {
-          // Fade out
+          // Fade out Spotify player
           player.classList.add("fade-out");
 
-          // Wait for fade, then change src and fade back in
+          // Change background
+          document.body.style.background = bg;
+
+          // Change playlist after fade
           setTimeout(() => {
-            player.src = `${url}?utm_source=generator`;
+            player.src = url;
             player.classList.remove("fade-out");
-          }, 800);
+          }, 1200);
         }
       });
     });
