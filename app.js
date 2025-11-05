@@ -879,6 +879,14 @@ function injectAudioVisualControls(){
 }
 injectAudioVisualControls();
 
+// ---------- Animate and render ----------
+function animate() {
+  requestAnimationFrame(animate);
+  updateRibbon(); // continuously make ribbon respond to sound
+  renderer.render(scene, camera);
+}
+animate();
+
 /* ---------- Animation / render loop ---------- */
 let start = performance.now();
 function animate(){
@@ -1073,12 +1081,3 @@ if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
 console.log('app.js loaded — full integration: smooth horizontal ribbon (audio-reactive), diagonal elliptical orbits, 7 genre pillars, Spotify embed integrated.');
-
-// ---------- Animate and render ----------
-function animate() {
-  requestAnimationFrame(animate);
-  updateRibbon(); // continuously make ribbon respond to sound
-  renderer.render(scene, camera);
-}
-animate();
-
