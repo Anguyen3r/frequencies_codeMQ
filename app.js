@@ -1,12 +1,11 @@
 /* app.js
-   FULL integrated app.js
-   - Horizontal ribbon: smooth, higher-resolution time-domain mapping + idle gentle waving
-   - Diagonal elliptical orbit for orbs (top-left → bottom-right)
-   - 7 genre bubbles + 7 vertical weaving pillar ribbons that follow bubbles
-   - Legend / UI synchronized colors
-   - Spotify embed integrated (click a genre to open its Spotify embed; local audio still supported)
-   - Soft, non-rectangular aurora (sprite gradients are circular/elliptical by design)
-   - Preserves your original behaviors and augments them with fixes
+   FULL integrated app.js with audio-reactive horizontal ribbon (soft glow)
+   Keeps your existing orbs, pillars, firebase/localStorage vote code, etc.
+   - Additions:
+     * radial glow for the ribbon (removes rectangular artifact)
+     * small "Load audio for visuals" control in the playlist area (local file or URL)
+     * uses existing audioController to feed analyser -> ribbon
+     * graceful idle fallback when no analyzable audio is present (e.g. Spotify iframe)
 */
 
 /* ---------- CONFIG ---------- */
@@ -14,7 +13,10 @@ const FIREBASE_CONFIG = null; // optional firebase config (leave null to use loc
 
 /* ---------- Small Helpers ---------- */
 function toCssHex(n){ return '#'+('000000'+(n.toString(16))).slice(-6); }
-function toCssRgba(hex, a=1){ const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255; return `rgba(${r},${g},${b},${a})`; }
+function toCssRgba(hex, a=1){
+  const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255;
+  return `rgba(${r},${g},${b},${a})`;
+}
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function safeAppend(el, child){ try{ el.appendChild(child); }catch(e){} }
 
@@ -320,7 +322,7 @@ const audioController = (function(){
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
+      analyser.fftSize = 4096; // higher resolution for smoother waveform
       freqData = new Uint8Array(analyser.frequencyBinCount);
       timeData = new Uint8Array(analyser.frequencyBinCount);
     }
@@ -328,10 +330,10 @@ const audioController = (function(){
   async function loadUrl(url, { loop = true } = {}){
     try {
       await ensure();
-      if (!audioEl){ audioEl = document.createElement('audio'); audioEl.crossOrigin='anonymous'; audioEl.controls=true; audioEl.style.width='100%'; }
+      if (!audioEl){ audioEl = document.createElement('audio'); audioEl.crossOrigin='anonymous'; audioEl.controls=true; audioEl.style.width='100%'; audioEl.id='visualAudioElement'; }
       audioEl.src = url;
       audioEl.loop = !!loop;
-      // play might be blocked until user gesture; catch the error
+      // user gesture may be required to play; try to play anyway
       audioEl.play().catch(()=>{});
       if (source) try{ source.disconnect(); }catch(e){}
       source = audioCtx.createMediaElementSource(audioEl);
@@ -366,7 +368,9 @@ const audioController = (function(){
     return timeData; // Uint8Array 0..255
   }
   function isActive(){ return active; }
-  return { loadUrl, stop, getAmps, getTimeDomain, isActive };
+  // expose the audio element too
+  function getAudioEl(){ return audioEl; }
+  return { loadUrl, stop, getAmps, getTimeDomain, isActive, getAudioEl };
 })();
 
 /* ---------- Horizontal Ribbon: smooth waveform energy trail ---------- */
@@ -393,36 +397,57 @@ function initRibbon(){
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  // Use Line2 / wide lines are not universally supported — keep LineBasicMaterial and sprite glow for width illusion
+  // Keep line basic material (works across environments)
   const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
   const line = new THREE.Line(geometry, mat);
   line.frustumCulled = false;
   scene.add(line);
 
-  // soft glow sprite behind the ribbon (helps mask any sharp rectangular artifacts)
-  const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
+  // ---------- Replace rectangle glow with radial/elliptical glow ----------
+  const size = 2048;
+  const c = document.createElement('canvas'); c.width = size; c.height = size/6; // wide but not rectangular-looking when used as sprite
   const ctx = c.getContext('2d');
-  const g = ctx.createLinearGradient(0,0,c.width,0);
-  g.addColorStop(0, 'rgba(255,255,255,0.00)');
-  g.addColorStop(0.18, 'rgba(255,255,255,0.06)');
-  g.addColorStop(0.5, 'rgba(255,255,255,0.14)');
-  g.addColorStop(0.82, 'rgba(255,255,255,0.06)');
-  g.addColorStop(1, 'rgba(255,255,255,0.00)');
-  ctx.fillStyle = g; ctx.fillRect(0,0,c.width,c.height);
-  // add subtle feathered vertical edges to reduce rectangular look
+
+  // create an elliptical radial gradient for soft non-rectangular glow
+  const cx = c.width * 0.5;
+  const cy = c.height * 0.45;
+  const rx = c.width * 0.55;
+  const ry = c.height * 0.95;
+  // draw filled ellipse with radial gradient
+  const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(rx, ry));
+  grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.08, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(0.22, 'rgba(255,255,255,0.20)');
+  grad.addColorStop(0.48, 'rgba(255,255,255,0.06)');
+  grad.addColorStop(1, 'rgba(255,255,255,0.00)');
+  ctx.fillStyle = grad;
+  // draw elliptical mask by scaling
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, ry / rx);
+  ctx.beginPath();
+  ctx.arc(0, 0, rx, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // feather edges lightly
   ctx.globalCompositeOperation = 'lighter';
-  const vgrad = ctx.createLinearGradient(0,0,c.width,c.height);
-  vgrad.addColorStop(0, 'rgba(255,255,255,0.00)');
-  vgrad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
-  vgrad.addColorStop(1, 'rgba(255,255,255,0.00)');
-  ctx.fillStyle = vgrad; ctx.fillRect(0,0,c.width,c.height);
-  ctx.globalCompositeOperation = 'source-over';
+  const edgeGrad = ctx.createLinearGradient(0,0,c.width,c.height);
+  edgeGrad.addColorStop(0, 'rgba(255,255,255,0.00)');
+  edgeGrad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
+  edgeGrad.addColorStop(1, 'rgba(255,255,255,0.00)');
+  ctx.fillStyle = edgeGrad;
+  ctx.fillRect(0,0,c.width,c.height);
+
   const glowTex = new THREE.CanvasTexture(c);
+  glowTex.needsUpdate = true;
   const spriteMat = new THREE.SpriteMaterial({ map: glowTex, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false });
   const sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
+  sprite.scale.set(width*1.05, Math.max(34, width*0.03), 1);
   sprite.position.set(0, -8, -140);
   scene.add(sprite);
+  // ---------- end glow replacement ----------
 
   const prevY = new Float32Array(POINTS);
   for (let i=0;i<POINTS;i++) prevY[i] = positions[i*3+1];
@@ -505,13 +530,9 @@ function clearSpotifyEmbed(){
 function embedSpotify(uri){
   if (!spotifyEmbed) return;
   spotifyEmbed.innerHTML = '';
-  // try to detect if the uri is already a full URL; convert to embed path
-  // spotify embed url format: https://open.spotify.com/embed/playlist/{id} OR /track/{id}
   try {
     const u = new URL(uri);
-    // allow open.spotify.com links directly
     if (u.hostname.includes('spotify')) {
-      // replace path with /embed + original path without trailing query
       const pathParts = u.pathname.split('/').filter(Boolean);
       if (pathParts.length >= 2){
         const embedPath = `/embed/${pathParts[0]}/${pathParts[1]}`;
@@ -529,7 +550,6 @@ function embedSpotify(uri){
       }
     }
   } catch(e){}
-  // If not parseable, try to create a generic embed with the string appended (best-effort)
   const iframe = document.createElement('iframe');
   iframe.src = uri;
   iframe.width = '300';
@@ -542,26 +562,22 @@ function embedSpotify(uri){
   spotifyEmbed.appendChild(iframe);
 }
 async function playGenreAudio(genreId){
-  // Primary: Spotify embed if mapping exists
   currentGenreId = genreId;
   const spotifyUri = GENRE_SPOTIFY[genreId];
   if (spotifyUri && spotifyEmbed){
-    // Stop local audioController (if active) — we can't analyze Spotify embed audio for visuals
     try { audioController.stop(); } catch(e){}
     clearSpotifyEmbed();
     embedSpotify(spotifyUri);
   } else {
-    // fallback: play configured direct URL (if you want to place direct MP3s, update GENRE_PLAYLISTS below)
     const url = (GENRE_PLAYLISTS && GENRE_PLAYLISTS[genreId]) ? GENRE_PLAYLISTS[genreId] : null;
     if (url) {
       await audioController.loadUrl(url, { loop: true });
     } else {
-      // nothing to play
       try { audioController.stop(); } catch(e){}
       clearSpotifyEmbed();
     }
   }
-  // colorize horizontal ribbon (exact match to genre color per your instruction)
+  // colorize horizontal ribbon
   const g = GENRES.find(x=>x.id===genreId);
   if (g && RIBBON.geometry && RIBBON.geometry.attributes.color){
     const colors = RIBBON.geometry.attributes.color.array;
@@ -577,7 +593,6 @@ async function playGenreAudio(genreId){
       RIBBON.sprite.material.color = new THREE.Color(g.color);
       RIBBON.sprite.material.opacity = 0.62;
     }
-    // pillar emphasis
     const foundIdx = GENRES.findIndex(x=>x.id===genreId);
     PILLAR_RIBBONS.forEach((p, i)=> {
       p.mesh.material.opacity = (i === foundIdx) ? 0.34 : 0.16;
@@ -591,9 +606,7 @@ if (loadSpotify && spotifyInput){
   loadSpotify.addEventListener('click', ()=>{
     const v = spotifyInput.value && spotifyInput.value.trim();
     if (!v) return;
-    // If user pastes a Spotify link, embed it
     embedSpotify(v);
-    // stop local audio since embed is used
     try { audioController.stop(); } catch(e){}
   });
 }
@@ -756,6 +769,80 @@ function updateOrbHighlight(genreId, topCount){
   o.core.scale.set(base, base, base);
 }
 
+/* ---------- Audio Visual Controls (small UI injected into playlistPanel) ----------
+   Adds a minimal "Load audio for visuals" control so user can paste a direct MP3/OGG URL or upload a file.
+   Spotify iframe cannot be used for analyser data; this control is the recommended workflow for visuals.
+*/
+function injectAudioVisualControls(){
+  const playlistPanel = document.getElementById('playlistPanel');
+  if (!playlistPanel) return;
+  // don't inject twice
+  if (playlistPanel.querySelector('.visual-controls')) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'visual-controls';
+  wrapper.style.marginTop = '10px';
+  wrapper.style.display = 'flex';
+  wrapper.style.gap = '8px';
+  wrapper.style.alignItems = 'center';
+  wrapper.style.justifyContent = 'space-between';
+
+  const left = document.createElement('div');
+  left.style.flex = '1';
+  left.innerHTML = `
+    <input id="visualAudioUrl" placeholder="Paste MP3/OGG URL for visuals" style="width:100%;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,0.03);color:#fff;font-size:13px" />
+  `;
+  const right = document.createElement('div');
+  right.style.display = 'flex';
+  right.style.gap = '8px';
+  right.innerHTML = `
+    <input id="visualAudioFile" type="file" accept="audio/*" style="display:none" />
+    <button id="loadVisualFile" class="btn" style="padding:8px;border-radius:8px;border:none;background:#222;color:#fff;cursor:pointer">Upload</button>
+    <button id="loadVisualUrl" class="btn" style="padding:8px;border-radius:8px;border:none;background:#1db954;color:#fff;cursor:pointer">Load</button>
+    <button id="stopVisuals" class="btn" style="padding:8px;border-radius:8px;border:none;background:#cc3333;color:#fff;cursor:pointer">Stop</button>
+  `;
+
+  wrapper.appendChild(left);
+  wrapper.appendChild(right);
+  playlistPanel.appendChild(wrapper);
+
+  const fileInput = wrapper.querySelector('#visualAudioFile');
+  const uploadBtn = wrapper.querySelector('#loadVisualFile');
+  const loadBtn = wrapper.querySelector('#loadVisualUrl');
+  const stopBtn = wrapper.querySelector('#stopVisuals');
+  const urlInput = wrapper.querySelector('#visualAudioUrl');
+
+  uploadBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', async (e)=>{
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const url = URL.createObjectURL(f);
+    const ok = await audioController.loadUrl(url, { loop: true });
+    if (ok) {
+      // reflect in UI: small confirmation
+      uploadBtn.textContent = 'Loaded';
+      setTimeout(()=> uploadBtn.textContent = 'Upload', 900);
+    }
+  });
+
+  loadBtn.addEventListener('click', async ()=>{
+    const url = urlInput.value && urlInput.value.trim(); if (!url) return;
+    const ok = await audioController.loadUrl(url, { loop: true });
+    if (ok) { loadBtn.textContent = 'Loaded'; setTimeout(()=> loadBtn.textContent = 'Load', 900); }
+  });
+
+  stopBtn.addEventListener('click', ()=> {
+    audioController.stop();
+    stopBtn.textContent = 'Stopped';
+    setTimeout(()=> stopBtn.textContent = 'Stop', 900);
+    // restore spotify embed display if needed
+    if (spotifyEmbed && currentGenreId){
+      clearSpotifyEmbed();
+      embedSpotify(GENRE_SPOTIFY[currentGenreId] || GENRE_SPOTIFY[Object.keys(GENRE_SPOTIFY)[0]]);
+    }
+  });
+}
+injectAudioVisualControls();
+
 /* ---------- Animation / render loop ---------- */
 let start = performance.now();
 function animate(){
@@ -789,12 +876,11 @@ function animate(){
   camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
   camera.lookAt(0,0,0);
 
-  // cluster / bubbles orbit: diagonal elliptical, more center-uniform
+  // cluster / bubbles orbit
   const clusterSpeed = 0.12 + bass * 0.38;
   const tiltAngle = -Math.PI / 4;
   const cosT = Math.cos(tiltAngle), sinT = Math.sin(tiltAngle);
 
-  // avoid left UI by pushing cluster right if leftPanel present
   let centerOffsetX = 0, centerOffsetY = 0;
   if (leftPanel && leftPanel.getBoundingClientRect){
     try {
@@ -844,12 +930,11 @@ function animate(){
     }
   });
 
-  /* --- Horizontal Ribbon update --- */
+  /* --- Horizontal Ribbon update (audio-reactive if analyser available) --- */
   try {
     if (RIBBON && RIBBON.geometry){
       const pos = RIBBON.geometry.attributes.position.array;
       const pts = RIBBON.points;
-      // Use time-domain when audioController active; note: Spotify embeds cannot be analyzed, so visuals fall back to idle
       const timeData = audioController.getTimeDomain();
       const prevY = RIBBON._prevY;
       const alpha = RIBBON.smoothAlpha;
@@ -933,7 +1018,7 @@ window.addEventListener('resize', ()=>{
   if (RIBBON && RIBBON.width){
     const width = (2 * Math.tan(camera.fov * Math.PI/180 / 2) * Math.abs(camera.position.z)) * camera.aspect * 1.05;
     RIBBON.width = width;
-    if (RIBBON.sprite) RIBBON.sprite.scale.set(width*1.05, Math.max(40, width*0.035), 1);
+    if (RIBBON.sprite) RIBBON.sprite.scale.set(width*1.05, Math.max(34, width*0.03), 1);
     const pos = RIBBON.geometry.attributes.position.array;
     for (let i=0;i<RIBBON.points;i++){
       const x = -width/2 + (i/(RIBBON.points-1)) * width;
@@ -951,4 +1036,4 @@ computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
 
-console.log('app.js loaded — full integration: smooth horizontal ribbon, diagonal elliptical orbits, 7 genre pillars, Spotify embed integrated.');
+console.log('app.js loaded — full integration: smooth horizontal ribbon (audio-reactive), diagonal elliptical orbits, 7 genre pillars, Spotify embed integrated.');
