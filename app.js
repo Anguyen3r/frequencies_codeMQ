@@ -879,14 +879,6 @@ function injectAudioVisualControls(){
 }
 injectAudioVisualControls();
 
-// ---------- Animate and render ----------
-function animate() {
-  requestAnimationFrame(animate);
-  updateRibbon(); // continuously make ribbon respond to sound
-  renderer.render(scene, camera);
-}
-animate();
-
 /* ---------- Animation / render loop ---------- */
 let start = performance.now();
 function animate(){
