@@ -1083,6 +1083,15 @@ window.addEventListener('resize', ()=>{
 });
 
 /* ---------- Startup ---------- */
+// --- Initialize all visual systems ---
+if (typeof initOrbs === 'function') initOrbs();
+if (typeof createRibbon === 'function') createRibbon();
+if (typeof initPillars === 'function') initPillars();
+if (typeof initStars === 'function') initStars();
+if (typeof initAurora === 'function') initAurora();
+if (camera && camera.position.z < 1) camera.position.z = 6;
+if (typeof animate === 'function') animate();
+
 computeAndRenderTop();
 if (useFirebase && dbRef) dbRef.on('value', ()=> computeAndRenderTop());
 setTimeout(()=> { if (!Object.keys(ORB_MESHES).length) console.error('Orbs not initialized — check Three.js load'); }, 900);
