@@ -19,7 +19,7 @@
       transition: background 1.5s ease; /* Smooth ambient crossfade */
     }
 
-    #canvas {
+    #canvasWrap {
       position: fixed;
       top: 0;
       left: 0;
@@ -103,9 +103,10 @@
 </head>
 
 <body>
-  <canvas id="canvas"></canvas>
-  <div id="ribbon" class="idle"></div>
+  <!-- ✅ Correct container for Three.js renderer -->
+  <div id="canvasWrap"></div>
 
+  <!-- UI cluster -->
   <div id="uiCluster">
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
