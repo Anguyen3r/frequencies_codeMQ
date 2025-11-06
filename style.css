@@ -61,6 +61,7 @@ canvas {
 
 /* Panels unified aesthetic */
 .panel {
+  position: relative; /* âœ… fix for shimmer alignment */
   background: rgba(20, 20, 30, 0.55);
   backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -68,6 +69,7 @@ canvas {
   padding: 14px 18px;
   box-shadow: 0 0 25px rgba(0, 0, 0, 0.45);
   transition: border 0.3s ease, box-shadow 0.3s ease;
+  color: rgba(255, 255, 255, 0.92); /* âœ… improved readability */
 }
 .panel:hover {
   border: 1px solid rgba(255,255,255,0.16);
