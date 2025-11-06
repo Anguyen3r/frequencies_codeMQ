@@ -4,32 +4,118 @@
   <meta charset="utf-8" />
   <title>Dream Bubbles — Spotify System</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Three.js & OrbitControls -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle at center, #0a0a12 0%, #000 100%);
+      overflow: hidden;
+      color: white;
+      font-family: "Inter", sans-serif;
+      transition: background 1.5s ease; /* Smooth ambient crossfade */
+    }
+
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    #uiCluster {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 16px;
+      z-index: 5;
+    }
+
+    .panel {
+      background: rgba(20, 20, 30, 0.6);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+      width: 420px;
+      transition: all 0.3s ease;
+    }
+
+    #playlistPanel iframe {
+      width: 100%;
+      height: 550px;
+      border-radius: 12px;
+      opacity: 1;
+      transition: opacity 1.2s ease; /* Crossfade timing */
+    }
+
+    #playlistPanel iframe.fade-out {
+      opacity: 0;
+    }
+
+    #genrePanel {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px;
+    }
+
+    #genreBar span {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+      text-align: center;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.3s ease, color 0.3s ease;
+    }
+
+    #genreBar span:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    #genreBar span.active {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.08);
+    }
+
+    /* Genre color mapping */
+    #genreBar span[data-genre="hard-techno"] { color: #ff3333; }
+    #genreBar span[data-genre="techno"] { color: #aa66ff; }
+    #genreBar span[data-genre="house"] { color: #ff9900; }
+    #genreBar span[data-genre="drum-bass"] { color: #33ff66; }
+    #genreBar span[data-genre="dubstep"] { color: #00ffff; }
+    #genreBar span[data-genre="electronic"] { color: #3366ff; }
+    #genreBar span[data-genre="pop"] { color: #ff77ff; }
+  </style>
 </head>
 
 <body>
-  <!-- 3D Scene Canvas -->
   <canvas id="canvas"></canvas>
   <div id="ribbon" class="idle"></div>
 
-  <!-- UI Cluster -->
   <div id="uiCluster">
-    <!-- Playlist Panel -->
     <div id="playlistPanel" class="panel">
       <h3>Now Playing</h3>
       <iframe id="spotifyPlayer"
         src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675"
+        width="100%" height="550" frameborder="0"
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy"></iframe>
     </div>
 
-    <!-- Genre Panel -->
     <div id="genrePanel" class="panel">
       <div id="genreBar">
         <span data-genre="hard-techno">Hard Techno</span>
@@ -43,19 +129,29 @@
     </div>
   </div>
 
-  <!-- Galaxy App -->
   <script src="app.js"></script>
 
   <script>
-    // --- Playlist + background logic ---
+    // --- Genre to Spotify playlist mapping ---
     const playlists = {
-      "hard-techno": "https://open.spotify.com/embed/playlist/6kA6f1C5rITf7k7w1oBGVv",
-      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675",
-      "house": "https://open.spotify.com/embed/playlist/7bu7BZEusLNJSaAuUUZBKn",
-      "drum-bass": "https://open.spotify.com/embed/playlist/0g37FHWjuxodt8Auj096hA",
-      "dubstep": "https://open.spotify.com/embed/playlist/3ObJ6Qra3CkV0gNCRTtK0c",
-      "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DXa1pcUVlBhYz",
+      "hard-techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXCzcvFxzeno?si=bb214d2088554ffc",
+      "techno": "https://open.spotify.com/embed/playlist/37i9dQZF1DX6J5NfMJS675?si=e45d85b3704b4f47",
+      "house": "https://open.spotify.com/embed/playlist/7bu7BZEusLNJSaAuUUZBKn?si=c2977c571b5f4c43",
+      "drum-bass": "https://open.spotify.com/embed/playlist/0g37FHWjuxodt8Auj096hA?si=300e0776ff9c4836",
+      "dubstep": "https://open.spotify.com/embed/playlist/3ObJ6Qra3CkV0gNCRTtK0c?si=719ed7039e5d4461",
+      "electronic": "https://open.spotify.com/embed/playlist/37i9dQZF1DXa1pcUVlBhYz?si=0ede762f838f44d7",
       "pop": "https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M"
+    };
+
+    // --- Ambient background colors per genre ---
+    const genreBackgrounds = {
+      "hard-techno": "radial-gradient(circle at center, #330000 0%, #000 100%)",
+      "techno": "radial-gradient(circle at center, #2a0040 0%, #000 100%)",
+      "house": "radial-gradient(circle at center, #402000 0%, #000 100%)",
+      "drum-bass": "radial-gradient(circle at center, #004020 0%, #000 100%)",
+      "dubstep": "radial-gradient(circle at center, #003333 0%, #000 100%)",
+      "electronic": "radial-gradient(circle at center, #001a40 0%, #000 100%)",
+      "pop": "radial-gradient(circle at center, #400040 0%, #000 100%)"
     };
 
     const genreSpans = document.querySelectorAll("#genreBar span");
@@ -63,24 +159,29 @@
 
     genreSpans.forEach(span => {
       span.addEventListener("click", () => {
+        // Remove active from others
         genreSpans.forEach(s => s.classList.remove("active"));
         span.classList.add("active");
 
         const genre = span.getAttribute("data-genre");
         const url = playlists[genre];
+        const bg = genreBackgrounds[genre];
 
         if (url) {
+          // Fade out Spotify player
           player.classList.add("fade-out");
+
+          // Change background
+          document.body.style.background = bg;
+
+          // Change playlist after fade
           setTimeout(() => {
             player.src = url;
             player.classList.remove("fade-out");
-          }, 800);
+          }, 1200);
         }
       });
     });
-
-    // Set Techno active initially
-    document.querySelector('[data-genre="techno"]').classList.add("active");
   </script>
 </body>
 </html>
