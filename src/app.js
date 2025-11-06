@@ -69,22 +69,20 @@ export default function App(){
     if (!mount) return;
 
     const scene = new THREE.Scene();
-    // slight change for visibility (keeps your intended dark atmosphere but gives contrast)
-    scene.fog = new THREE.FogExp2(0x050518, 0.00009);
-    scene.background = new THREE.Color(0x000010);
+    // <-- fog density adjusted to be lighter so objects remain visible
+    scene.fog = new THREE.FogExp2(0x00000c, 0.00002);
     sceneRef.current = scene;
 
-    const CAMERA_Z = 850;
+    const CAMERA_Z = 250; // <-- moved camera much closer so the cluster is visible
     const camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHeight, 0.1, 10000);
     camera.position.set(0, 18, CAMERA_Z);
     camera.lookAt(0,0,0);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    // ensure clear color is set with opaque alpha so scene shows
-    renderer.setClearColor(0x000010, 1);
+    renderer.setClearColor(0x000010, 0);
     renderer.domElement.style.position = "fixed";
     renderer.domElement.style.inset = "0";
     renderer.domElement.style.zIndex = "0";
@@ -92,8 +90,10 @@ export default function App(){
     rendererRef.current = renderer;
 
     // lights
-    const amb = new THREE.AmbientLight(0xffffff, 0.6); scene.add(amb);
-    const dir = new THREE.DirectionalLight(0xffffff, 1.4); dir.position.set(10,20,10); scene.add(dir);
+    const amb = new THREE.AmbientLight(0xffffff, 1.5); // <-- increased ambient intensity
+    scene.add(amb);
+    const dir = new THREE.DirectionalLight(0xffffff, 2.5); // <-- increased directional intensity
+    dir.position.set(10,20,10); scene.add(dir);
 
     // helper textures
     function generateGlowTexture(colorHex){
@@ -416,7 +416,7 @@ export default function App(){
       smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t*0.63)*0.05 + bass*0.6);
 
       // camera subtle move
-      camera.position.z = 850 + Math.sin(t*0.08) * 6 + bass * 80;
+      camera.position.z = CAMERA_Z + Math.sin(t*0.08) * 6 + bass * 80;
       camera.position.x = Math.sin(t*0.04) * 12 * (0.7 + rms * 0.8);
       camera.position.y = Math.cos(t*0.03) * 6 * (0.7 + rms * 0.6);
       camera.lookAt(0,0,0);
