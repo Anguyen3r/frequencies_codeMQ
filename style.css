@@ -8,11 +8,15 @@ html, body {
   overflow: hidden;
 }
 
-/* 3D canvas */
-canvas {
+/* 3D scene container (Three.js attaches renderer here) */
+#canvasWrap {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 0;
+  overflow: hidden;
   background: transparent;
 }
 
@@ -136,7 +140,7 @@ canvas {
   transform: scale(1.05);
 }
 
-/* Mobile */
+/* Mobile adjustments */
 @media (max-width: 760px) {
   #playlistPanel iframe {
     width: 80vw;
