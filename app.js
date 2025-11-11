@@ -890,27 +890,51 @@ function animate(){
     } catch(e){}
   }
 
-  GENRES.forEach((g, idx) => {
-    const o = ORB_MESHES[g.id];
-    if (!o) return;
-    const phaseOffset = o.baseAngle;
-    const angle = t * clusterSpeed + phaseOffset * (0.6 + idx*0.08);
+  // --- Bubble orbit logic (proportional uniform flow) ---
+GENRES.forEach((g, idx) => {
+  const o = ORB_MESHES[g.id];
+  if (!o) return;
 
-    const ex = CLUSTER_RADIUS * (0.86 + Math.sin(idx + t*0.12)*0.02);
-    const ey = CLUSTER_RADIUS * 0.48 * (0.9 + Math.cos(idx*0.7 + t*0.11)*0.02);
+  // harmonic orbit parameters
+  const baseSpeed = 0.6;
+  const baseRadius = CLUSTER_RADIUS * 0.85;
+  const radiusStep = 0.35;
+  const speedStep = 0.05;
+  const tiltAngle = -Math.PI / 4;
+  const cosT = Math.cos(tiltAngle), sinT = Math.sin(tiltAngle);
 
-    const rawX = Math.cos(angle) * ex;
-    const rawY = Math.sin(angle) * ey;
+  // compute orbit
+  const orbitSpeed  = baseSpeed  + idx * speedStep;
+  const orbitRadius = baseRadius + idx * radiusStep;
+  const offset = (idx / GENRES.length) * Math.PI * 2;
 
-    const rx = rawX * cosT - rawY * sinT;
-    const ry = rawX * sinT + rawY * cosT;
+  // circular orbit
+  const rawX = Math.cos(t * orbitSpeed + offset) * orbitRadius;
+  const rawY = Math.sin(t * orbitSpeed + offset) * orbitRadius;
 
-    const jitterX = Math.sin(t*0.27 + idx*0.64) * 6;
-    const jitterY = Math.cos(t*0.31 + idx*0.41) * 3;
+  // tilt the orbit plane
+  const rx = rawX * cosT - rawY * sinT;
+  const ry = rawX * sinT + rawY * cosT;
 
-    o.container.position.x = rx + centerOffsetX + jitterX + (idx - (GENRES.length-1)/2) * Math.sin(t*0.02) * 0.7;
-    o.container.position.y = ry + centerOffsetY + jitterY + Math.cos(idx*0.5 + t*0.2)*4;
-    o.container.position.z = Math.sin(t*(0.45 + idx*0.02))*8 - idx*3;
+  // gentle breathing motion
+  const jitterX = Math.sin(t * 0.27 + idx * 0.64) * 3;
+  const jitterY = Math.cos(t * 0.31 + idx * 0.41) * 2;
+
+  // apply final position
+  o.container.position.x = rx + centerOffsetX + jitterX;
+  o.container.position.y = ry + centerOffsetY + jitterY;
+  o.container.position.z = Math.sin(t * (0.45 + idx * 0.02)) * 6 - idx * 3;
+
+  // rotation / opacity effects unchanged
+  o.core.rotation.y += 0.002 + idx * 0.0003;
+  o.core.rotation.x += 0.0011;
+
+  o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
+  o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
+
+  o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
+  o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
+});
 
     o.core.rotation.y += 0.002 + idx*0.0003;
     o.core.rotation.x += 0.0011;
