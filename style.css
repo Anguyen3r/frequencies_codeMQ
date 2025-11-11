@@ -145,3 +145,25 @@ canvas {
     font-size: 0.7em;
   }
 }
+
+/* ✅ Fix question prompt alignment and containment */
+#questionPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  padding: 8px 10px;
+
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* ✅ Prevent overflow from shimmer or text */
+.panel {
+  overflow: hidden;
+}
