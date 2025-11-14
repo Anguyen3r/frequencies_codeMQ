@@ -1,169 +1,44 @@
-/* Layout and background */
-html, body {
-  height: 100%;
-  margin: 0;
-  font-family: 'Inter', system-ui, Arial;
-  background: radial-gradient(ellipse at center, #000010 0%, #000005 100%);
-  color: #fff;
+/* ----------------------------------------------------------
+   FIX: Modal question prompt alignment + containment
+---------------------------------------------------------- */
+
+/* Ensure all content inside modal stays inside border */
+.panel {
   overflow: hidden;
 }
 
-/* 3D canvas */
-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: transparent;
-}
-
-/* Horizontal ribbon synced with waveform */
-#ribbon {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  transform: translateY(-50%);
-  background: linear-gradient(90deg,
-    rgba(0,255,255,0.25),
-    rgba(255,0,255,0.4),
-    rgba(255,255,0,0.3),
-    rgba(0,255,255,0.25)
-  );
-  background-size: 400% 100%;
-  filter: blur(4px) brightness(1.3);
-  transition: background 0.8s ease;
-  opacity: 0.8;
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* Subtle idle animation when not playing */
-@keyframes idleFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-#ribbon.idle {
-  animation: idleFlow 12s ease-in-out infinite;
-}
-
-/* Glassy floating UI cluster (top right) */
-#uiCluster {
-  position: fixed;
-  top: 20px;
-  right: 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 30;
-}
-
-/* Panels unified aesthetic */
-.panel {
-  position: relative; /* âœ… fix for shimmer alignment */
-  background: rgba(20, 20, 30, 0.55);
-  backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px 18px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.45);
-  transition: border 0.3s ease, box-shadow 0.3s ease;
-  color: rgba(255, 255, 255, 0.92); /* âœ… improved readability */
-}
-.panel:hover {
-  border: 1px solid rgba(255,255,255,0.16);
-  box-shadow: 0 0 28px rgba(255,255,255,0.08);
-}
-
-/* Glow edge shimmer */
-.panel::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(120deg,
-    rgba(0,255,255,0.4),
-    rgba(255,0,255,0.4),
-    rgba(255,255,0,0.3),
-    rgba(0,255,255,0.4));
-  background-size: 400% 400%;
-  animation: shimmer 18s linear infinite;
-  opacity: 0.4;
-  z-index: -1;
-}
-@keyframes shimmer {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Playlist container */
-#playlistPanel {
-  font-family: 'Inter', monospace;
-  color: #fff;
-}
-#playlistPanel h3 {
-  margin-top: 0;
+/* Style text inside the question modal */
+.panel p {
   font-size: 14px;
-  opacity: 0.9;
-}
-#playlistPanel iframe {
-  border-radius: 10px;
-  width: 260px;
-  height: 160px;
-  border: none;
-}
-
-/* Genre bar (color tinted to stardust ring) */
-#genreBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-#genreBar span {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75em;
-  letter-spacing: 0.4px;
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  transition: all 0.3s ease;
-}
-#genreBar span.active {
-  background: rgba(255,255,255,0.18);
-  box-shadow: 0 0 10px currentColor;
-  transform: scale(1.05);
-}
-
-/* Mobile */
-@media (max-width: 760px) {
-  #playlistPanel iframe {
-    width: 80vw;
-  }
-  #genreBar span {
-    font-size: 0.7em;
-  }
-}
-
-/* ✅ Fix question prompt alignment and containment */
-#questionPrompt {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  line-height: 1.35;
+  padding: 4px 6px;
+  margin: 0 0 10px 0;
   text-align: center;
-
-  width: 100%;
-  max-width: 240px;
-  margin: 0 auto;
-  padding: 8px 10px;
-
-  box-sizing: border-box;
   overflow-wrap: break-word;
   white-space: normal;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* ✅ Prevent overflow from shimmer or text */
-.panel {
-  overflow: hidden;
+/* Inputs in modal */
+.panel input,
+.panel textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+/* Fix label spacing */
+.panel label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.8;
 }
