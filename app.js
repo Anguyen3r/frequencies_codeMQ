@@ -929,15 +929,23 @@ GENRES.forEach((g, idx) => {
 o.core.rotation.y += 0.002 + idx * 0.0003;
 o.core.rotation.x += 0.0011;
 
-o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-o.ringObj.mat.opacity =
-  0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
+// Safe-clamp helper (prevents blown-out white scene)
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-o.gas.material.opacity =
-  0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
+o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
+
+o.ringObj.mat.opacity = clamp(
+  0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + (rms || 0) * 0.22,
+  0.2, 0.9
+);
+
+o.gas.material.opacity = clamp(
+  0.045 + 0.01 * Math.sin(t * 0.9 + idx) + (bass || 0) * 0.018,
+  0.01, 0.15
+);
 
 o.core.children.forEach(ch => {
-  if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28;
+  if (ch.isSprite) ch.material.opacity = 0.16 + (rms || 0) * 0.28;
 });
 
 // sync pillar position to orb
