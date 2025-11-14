@@ -925,67 +925,109 @@ GENRES.forEach((g, idx) => {
   o.container.position.y = ry + centerOffsetY + jitterY;
   o.container.position.z = Math.sin(t * (0.45 + idx * 0.02)) * 6 - idx * 3;
 
-  // rotation / opacity effects unchanged
-    o.core.rotation.y += 0.002 + idx*0.0003;
-    o.core.rotation.x += 0.0011;
+// rotation / opacity effects unchanged
+o.core.rotation.y += 0.002 + idx * 0.0003;
+o.core.rotation.x += 0.0011;
 
-    o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-    o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t*0.6 + idx))*0.18 + rms * 0.22;
+o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
+o.ringObj.mat.opacity =
+  0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
 
-    o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t*0.9 + idx) + bass*0.018;
+o.gas.material.opacity =
+  0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
 
-    o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
+o.core.children.forEach(ch => {
+  if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28;
+});
 
-    // sync pillar position to orb
-    const pillar = PILLAR_RIBBONS[idx];
-    if (pillar){
-      pillar.mesh.userData.baseX = o.container.position.x;
-      pillar.mesh.position.z = o.container.position.z - 50 - idx*2;
-    }
-  });
+// sync pillar position to orb
+const pillar = PILLAR_RIBBONS[idx];
+if (pillar) {
+  pillar.mesh.userData.baseX = o.container.position.x;
+  pillar.mesh.position.z = o.container.position.z - 50 - idx * 2;
+}
+});
 
-  /* --- Horizontal Ribbon update (audio-reactive if analyser available) --- */
-  try {
-    if (RIBBON && RIBBON.geometry){
-      const pos = RIBBON.geometry.attributes.position.array;
-      const pts = RIBBON.points;
-      const timeData = audioController.getTimeDomain();
-      const prevY = RIBBON._prevY;
-      const alpha = RIBBON.smoothAlpha;
-      if (timeData && timeData.length > 0){
-        const tdLen = timeData.length;
-        for (let i=0;i<pts;i++){
-          const f = (i / (pts-1)) * (tdLen - 1);
-          const i0 = Math.floor(f), i1 = Math.min(tdLen-1, i0+1);
-          const frac = f - i0;
-          const td0 = timeData[i0], td1 = timeData[i1];
-          const td = td0 * (1 - frac) + td1 * frac;
-          const v = (td / 128.0) - 1.0;
-          const amplitude = 120 + (currentGenreId ? 80 : 0);
-          const baseOsc = Math.sin(i*0.09 + t*0.7) * 0.14;
-          const targetY = v * amplitude * (0.7 + baseOsc);
-          const idx = i*3;
-          prevY[i] = prevY[i] * (1 - alpha) + targetY * alpha;
-          pos[idx+1] = prevY[i] - 10;
-          pos[idx+2] = -120 + Math.sin(t*0.28 + i*0.04) * 5;
-        }
-        const amps = audioController.getAmps();
-        const brightness = amps ? (0.28 + amps.rms*1.4) : 0.36;
-        if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = Math.min(0.95, 0.22 + brightness);
-      } else {
-        // gentle idle waving when no analyzable audio
-        for (let i=0;i<pts;i++){
-          const idx = i*3;
-          const targetY = (Math.sin(i*0.08 + t*0.9) * 12 + Math.sin(i*0.06 + t*0.3)*6 - 8);
-          prevY[i] = prevY[i] * (1 - alpha) + targetY * alpha;
-          pos[idx+1] = prevY[i];
-          pos[idx+2] = -120 + Math.sin(t*0.12 + i*0.03)*4;
-        }
-        if (RIBBON.sprite && RIBBON.sprite.material) RIBBON.sprite.material.opacity = 0.45;
+/* --- Horizontal Ribbon update (audio-reactive if analyser available) --- */
+try {
+  if (RIBBON && RIBBON.geometry) {
+    const pos = RIBBON.geometry.attributes.position.array;
+    const pts = RIBBON.points;
+    const timeData = audioController.getTimeDomain();
+    const prevY = RIBBON._prevY;
+    const alpha = RIBBON.smoothAlpha;
+
+    if (timeData && timeData.length > 0) {
+      const tdLen = timeData.length;
+
+      for (let i = 0; i < pts; i++) {
+        const f = (i / (pts - 1)) * (tdLen - 1);
+        const i0 = Math.floor(f),
+          i1 = Math.min(tdLen - 1, i0 + 1);
+        const frac = f - i0;
+
+        const td =
+          timeData[i0] * (1 - frac) + timeData[i1] * frac;
+        const v = td / 128 - 1;
+
+        const amplitude = 120 + (currentGenre ? 80 : 0);
+        const baseOsc =
+          Math.sin(i * 0.09 + t * 0.7) * 0.14;
+        const yTarget = v * amplitude * (0.7 + baseOsc);
+
+        const idx3 = i * 3;
+
+        prevY[i] = prevY[i] * (1 - alpha) + yTarget * alpha;
+        pos[idx3 + 1] = prevY[i] - 10;
+        pos[idx3 + 2] =
+          -120 +
+          Math.sin(t * 0.28 + i * 0.04) * 5;
       }
-      RIBBON.geometry.attributes.position.needsUpdate = true;
+
+      const amps = audioController.getAmps();
+      const brightness = amps
+        ? 0.28 + amps.rms * 1.4
+        : 0.36;
+
+      if (
+        RIBBON.sprite &&
+        RIBBON.sprite.material
+      )
+        RIBBON.sprite.material.opacity = Math.min(
+          0.95,
+          0.22 + brightness
+        );
+    } else {
+      // gentle idle waving when no analyzable audio
+      for (let i = 0; i < pts; i++) {
+        const idx3 = i * 3;
+
+        const targetY =
+          Math.sin(i * 0.08 + t * 0.9) * 12 +
+          Math.sin(i * 0.06 + t * 0.3) * 6 -
+          8;
+
+        prevY[i] =
+          prevY[i] * (1 - alpha) + targetY * alpha;
+
+        pos[idx3 + 1] = prevY[i];
+        pos[idx3 + 2] =
+          -120 +
+          Math.sin(t * 0.12 + i * 0.03) * 4;
+      }
+
+      if (
+        RIBBON.sprite &&
+        RIBBON.sprite.material
+      )
+        RIBBON.sprite.material.opacity = 0.45;
     }
-  } catch(e){ /* safe */ }
+
+    RIBBON.geometry.attributes.position.needsUpdate = true;
+  }
+} catch (e) {
+  /* safe */
+}
 
   /* --- Pillar ribbon weave update (gentle waving) --- */
   try {
