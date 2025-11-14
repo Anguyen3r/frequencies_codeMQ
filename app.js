@@ -856,17 +856,46 @@ function animate(){
   // stars twinkle
   starsFar.points.rotation.z += 0.00035;
   starsNear.points.rotation.z -= 0.00048;
-  starsNear.mat.opacity = 0.55 + Math.sin(t*0.9 + 3.1) * 0.08 + rms * 0.12;
-  starsFar.mat.opacity = 0.88 + Math.cos(t*0.4 + 1.7) * 0.04 + bass * 0.06;
+   
+  // ⭐ safe opacity clamp to prevent white-screen blowout
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  dustPlane.rotation.z += 0.00012;
+// --- Starfield safe opacity ---
+starsNear.mat.opacity = clamp(
+  0.55 + Math.sin(t * 0.9 + 3.1) * 0.08 + (rms || 0) * 0.12,
+  0.25, 0.7
+);
 
-  // smoke pulse
-  const smokePulse = 0.6 + Math.sin(t*0.9) * 0.12 + bass * 0.9;
-  smokeBack1.material.opacity = 0.28 * smokePulse;
-  smokeBack2.material.opacity = 0.22 * (0.9 + Math.cos(t*0.7)*0.06 + bass*0.4);
-  smokeFront1.material.opacity = 0.24 * (0.9 + Math.sin(t*0.5)*0.06 + rms*0.9);
-  smokeFront2.material.opacity = 0.20 * (1 + Math.cos(t*0.63)*0.05 + bass*0.6);
+starsFar.mat.opacity = clamp(
+  0.88 + Math.cos(t * 0.4 + 1.7) * 0.04 + (bass || 0) * 0.06,
+  0.35, 0.85
+);
+
+dustPlane.rotation.z += 0.00012;
+
+// --- Smoke safe opacity ---
+const smokePulse = 0.6 + Math.sin(t * 0.9) * 0.12 + (bass || 0) * 0.9;
+
+smokeBack1.material.opacity = clamp(
+  0.28 * smokePulse,
+  0.02, 0.35
+);
+
+smokeBack2.material.opacity = clamp(
+  0.22 * (0.9 + Math.cos(t * 0.7) * 0.06 + (bass || 0) * 0.4),
+  0.02, 0.35
+);
+
+smokeFront1.material.opacity = clamp(
+  0.24 * (0.9 + Math.sin(t * 0.5) * 0.06 + (rms || 0) * 0.9),
+  0.02, 0.35
+);
+
+smokeFront2.material.opacity = clamp(
+  0.20 * (1 + Math.cos(t * 0.63) * 0.05 + (bass || 0) * 0.6),
+  0.02, 0.35
+);
+
   cornerSprites.forEach((s,i)=> s.material.opacity = (0.12 + Math.sin(t*0.7 + i)*0.03 + bass*0.06));
 
   // camera subtle move
