@@ -926,16 +926,6 @@ GENRES.forEach((g, idx) => {
   o.container.position.z = Math.sin(t * (0.45 + idx * 0.02)) * 6 - idx * 3;
 
   // rotation / opacity effects unchanged
-  o.core.rotation.y += 0.002 + idx * 0.0003;
-  o.core.rotation.x += 0.0011;
-
-  o.ringObj.group.rotation.z += o.ringObj.rotationSpeed * (1 + bass * 0.8);
-  o.ringObj.mat.opacity = 0.82 - Math.abs(Math.sin(t * 0.6 + idx)) * 0.18 + rms * 0.22;
-
-  o.gas.material.opacity = 0.045 + 0.01 * Math.sin(t * 0.9 + idx) + bass * 0.018;
-  o.core.children.forEach(ch => { if (ch.isSprite) ch.material.opacity = 0.16 + rms * 0.28; });
-});
-
     o.core.rotation.y += 0.002 + idx*0.0003;
     o.core.rotation.x += 0.0011;
 
