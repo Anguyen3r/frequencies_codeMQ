@@ -855,8 +855,6 @@ function animate(){
 
   // stars twinkle
   starsFar.points.rotation.z += 0.00035;
-  starsNear.points.rotation.z -= 0.00048;
-   
   // ⭐ safe opacity clamp to prevent white-screen blowout
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
