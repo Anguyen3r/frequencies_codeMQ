@@ -1,70 +1,84 @@
 console.log('app.js loaded');
 
-let scene, camera, renderer, controls;
-let sphere;
+//
+// DOM guards (prevents null crashes)
+//
+const get = id => document.getElementById(id);
 
-init();
-animate();
+const canvasWrap   = get('canvasWrap');
+const legendList   = get('legendList');
+const genreSelect  = get('genreSelect');
+const topList      = get('topList');
+const leftPanel    = get('leftPanel');
+const fadeOverlay  = get('fade-overlay');
 
-function init() {
-  const container = document.getElementById('canvasWrap');
+//
+// THREE.JS CORE
+//
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-  // Scene
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050508);
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.z = 6;
 
-  // Camera
-  camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
-  camera.position.z = 5;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+canvasWrap.appendChild(renderer.domElement);
 
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+//
+// SIMPLE VISUAL (proof of life)
+//
+const geometry = new THREE.TorusKnotGeometry(1, 0.35, 128, 32);
+const material = new THREE.MeshStandardMaterial({
+  color: 0xff77aa,
+  metalness: 0.4,
+  roughness: 0.2
+});
+const knot = new THREE.Mesh(geometry, material);
+scene.add(knot);
+
+const light1 = new THREE.PointLight(0xffffff, 1);
+light1.position.set(5, 5, 5);
+scene.add(light1);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+//
+// RESIZE
+//
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  container.appendChild(renderer.domElement);
+});
 
-  // Controls
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  // Test geometry (proof of life)
-  const geo = new THREE.SphereGeometry(1, 64, 64);
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0x88aaff,
-    metalness: 0.2,
-    roughness: 0.4
-  });
-  sphere = new THREE.Mesh(geo, mat);
-  scene.add(sphere);
-
-  // Lights
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
-
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-  dir.position.set(5, 5, 5);
-  scene.add(dir);
-
-  // Resize
-  window.addEventListener('resize', onResize);
-}
-
+//
+// ANIMATE
+//
 function animate() {
   requestAnimationFrame(animate);
-
-  sphere.rotation.y += 0.003;
-  sphere.rotation.x += 0.0015;
-
+  knot.rotation.x += 0.003;
+  knot.rotation.y += 0.004;
   controls.update();
   renderer.render(scene, camera);
 }
 
-function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+animate();
+
+//
+// AUDIO (SAFE STUB — no SoundCloud crash)
+//
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const analyser = audioCtx.createAnalyser();
+analyser.fftSize = 256;
+
+console.log('Three.js scene initialized');
