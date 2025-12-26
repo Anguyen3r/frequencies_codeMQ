@@ -31,7 +31,7 @@ const light = new THREE.PointLight(0xffffff, 1);
 light.position.set(5, 5, 5);
 scene.add(light);
 
-// ---------------- RIBBON ----------------
+// ---------- RIBBON GEOMETRY ----------
 
 const POINTS = 120;
 const RADIUS = 0.015;
