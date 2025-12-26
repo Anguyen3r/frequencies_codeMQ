@@ -6,30 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
+
 <body>
-
-  <!-- Required containers -->
+  <!-- Three.js canvas mounts here -->
   <div id="canvasWrap"></div>
-  <div id="fade-overlay"></div>
 
-  <!-- Minimal UI (safe placeholders) -->
-  <div id="ui"></div>
-  <div id="legend"><ul id="legendList"></ul></div>
-
-  <select id="genreSelect"></select>
-  <div id="leftPanel" class="hidden"></div>
-  <button id="toggleTop">Toggle</button>
-  <div id="topList"></div>
-
-  <input id="spotifyInput" placeholder="Spotify link" />
-  <button id="loadSpotify">Load</button>
-  <div id="spotifyEmbed"></div>
-
-  <script src="app.js"></script>
+  <!-- IMPORTANT: app.js must be a module -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
