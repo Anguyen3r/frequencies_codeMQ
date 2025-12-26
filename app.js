@@ -1,16 +1,14 @@
 console.log('app.js loaded');
 
 //
-// DOM guards (prevents null crashes)
+// DOM SAFETY
 //
 const get = id => document.getElementById(id);
+const canvasWrap = get('canvasWrap');
 
-const canvasWrap   = get('canvasWrap');
-const legendList   = get('legendList');
-const genreSelect  = get('genreSelect');
-const topList      = get('topList');
-const leftPanel    = get('leftPanel');
-const fadeOverlay  = get('fade-overlay');
+if (!canvasWrap) {
+  throw new Error('canvasWrap not found — check index.html');
+}
 
 //
 // THREE.JS CORE
@@ -33,41 +31,86 @@ canvasWrap.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.enablePan = false;
 
 //
-// SIMPLE VISUAL (proof of life)
+// LIGHTING
 //
-const geometry = new THREE.TorusKnotGeometry(1, 0.35, 128, 32);
-const material = new THREE.MeshStandardMaterial({
-  color: 0xff77aa,
-  metalness: 0.4,
-  roughness: 0.2
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+const keyLight = new THREE.PointLight(0xffffff, 1);
+keyLight.position.set(5, 5, 5);
+scene.add(keyLight);
+
+//
+// RIBBON GEOMETRY
+//
+const RIBBON_POINTS = 120;
+const RIBBON_RADIUS = 0.015;
+
+const ribbonPoints = [];
+for (let i = 0; i < RIBBON_POINTS; i++) {
+  const t = i / RIBBON_POINTS;
+  ribbonPoints.push(
+    new THREE.Vector3(
+      Math.sin(t * Math.PI * 4) * 1.2,
+      Math.cos(t * Math.PI * 2) * 0.6,
+      (t - 0.5) * 4
+    )
+  );
+}
+
+const ribbonCurve = new THREE.CatmullRomCurve3(ribbonPoints);
+
+let ribbonGeometry = new THREE.TubeGeometry(
+  ribbonCurve,
+  300,
+  RIBBON_RADIUS,
+  3,
+  false
+);
+
+const ribbonMaterial = new THREE.MeshStandardMaterial({
+  color: 0xff88cc,
+  emissive: 0x220011,
+  roughness: 0.3,
+  metalness: 0.6,
+  side: THREE.DoubleSide
 });
-const knot = new THREE.Mesh(geometry, material);
-scene.add(knot);
 
-const light1 = new THREE.PointLight(0xffffff, 1);
-light1.position.set(5, 5, 5);
-scene.add(light1);
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+const ribbonMesh = new THREE.Mesh(ribbonGeometry, ribbonMaterial);
+scene.add(ribbonMesh);
 
 //
-// RESIZE
+// ANIMATION LOOP
 //
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+let time = 0;
 
-//
-// ANIMATE
-//
 function animate() {
   requestAnimationFrame(animate);
-  knot.rotation.x += 0.003;
-  knot.rotation.y += 0.004;
+  time += 0.01;
+
+  // Deform ribbon
+  for (let i = 0; i < ribbonPoints.length; i++) {
+    const t = i / ribbonPoints.length;
+    ribbonPoints[i].x = Math.sin(t * Math.PI * 4 + time) * 1.2;
+    ribbonPoints[i].y = Math.cos(t * Math.PI * 2 + time * 1.5) * 0.6;
+  }
+
+  ribbonCurve.points = ribbonPoints;
+
+  // Rebuild geometry
+  ribbonMesh.geometry.dispose();
+  ribbonMesh.geometry = new THREE.TubeGeometry(
+    ribbonCurve,
+    300,
+    RIBBON_RADIUS,
+    3,
+    false
+  );
+
+  ribbonMesh.rotation.z += 0.001;
+
   controls.update();
   renderer.render(scene, camera);
 }
@@ -75,10 +118,12 @@ function animate() {
 animate();
 
 //
-// AUDIO (SAFE STUB — no SoundCloud crash)
+// RESIZE HANDLER
 //
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-const analyser = audioCtx.createAnalyser();
-analyser.fftSize = 256;
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-console.log('Three.js scene initialized');
+console.log('Ribbon initialized successfully');
