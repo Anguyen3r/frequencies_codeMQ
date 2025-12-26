@@ -1,17 +1,16 @@
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/controls/OrbitControls.js';
+
 console.log('app.js loaded');
 
 //
-// DOM SAFETY
+// DOM
 //
-const get = id => document.getElementById(id);
-const canvasWrap = get('canvasWrap');
-
-if (!canvasWrap) {
-  throw new Error('canvasWrap not found — check index.html');
-}
+const canvasWrap = document.getElementById('canvasWrap');
+if (!canvasWrap) throw new Error('canvasWrap not found');
 
 //
-// THREE.JS CORE
+// SCENE
 //
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
@@ -29,7 +28,10 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 canvasWrap.appendChild(renderer.domElement);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
+//
+// CONTROLS (FIXED)
+//
+const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
 
@@ -38,17 +40,17 @@ controls.enablePan = false;
 //
 scene.add(new THREE.AmbientLight(0xffffff, 0.35));
 
-const keyLight = new THREE.PointLight(0xffffff, 1);
-keyLight.position.set(5, 5, 5);
-scene.add(keyLight);
+const light = new THREE.PointLight(0xffffff, 1);
+light.position.set(5, 5, 5);
+scene.add(light);
 
 //
 // RIBBON GEOMETRY
 //
 const RIBBON_POINTS = 120;
 const RIBBON_RADIUS = 0.015;
-
 const ribbonPoints = [];
+
 for (let i = 0; i < RIBBON_POINTS; i++) {
   const t = i / RIBBON_POINTS;
   ribbonPoints.push(
@@ -62,14 +64,6 @@ for (let i = 0; i < RIBBON_POINTS; i++) {
 
 const ribbonCurve = new THREE.CatmullRomCurve3(ribbonPoints);
 
-let ribbonGeometry = new THREE.TubeGeometry(
-  ribbonCurve,
-  300,
-  RIBBON_RADIUS,
-  3,
-  false
-);
-
 const ribbonMaterial = new THREE.MeshStandardMaterial({
   color: 0xff88cc,
   emissive: 0x220011,
@@ -78,11 +72,15 @@ const ribbonMaterial = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide
 });
 
-const ribbonMesh = new THREE.Mesh(ribbonGeometry, ribbonMaterial);
+let ribbonMesh = new THREE.Mesh(
+  new THREE.TubeGeometry(ribbonCurve, 300, RIBBON_RADIUS, 3, false),
+  ribbonMaterial
+);
+
 scene.add(ribbonMesh);
 
 //
-// ANIMATION LOOP
+// ANIMATION
 //
 let time = 0;
 
@@ -90,16 +88,12 @@ function animate() {
   requestAnimationFrame(animate);
   time += 0.01;
 
-  // Deform ribbon
   for (let i = 0; i < ribbonPoints.length; i++) {
     const t = i / ribbonPoints.length;
     ribbonPoints[i].x = Math.sin(t * Math.PI * 4 + time) * 1.2;
     ribbonPoints[i].y = Math.cos(t * Math.PI * 2 + time * 1.5) * 0.6;
   }
 
-  ribbonCurve.points = ribbonPoints;
-
-  // Rebuild geometry
   ribbonMesh.geometry.dispose();
   ribbonMesh.geometry = new THREE.TubeGeometry(
     ribbonCurve,
@@ -118,7 +112,7 @@ function animate() {
 animate();
 
 //
-// RESIZE HANDLER
+// RESIZE
 //
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -126,4 +120,4 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-console.log('Ribbon initialized successfully');
+console.log('Ribbon running clean');
