@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles — SoundCloud System</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dream Bubbles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <link rel="stylesheet" href="style.css" />
 
   <!-- Three.js -->
@@ -11,31 +12,23 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
 </head>
 <body>
-  <!-- 3D canvas and ribbon -->
-  <canvas id="canvas"></canvas>
-  <div id="ribbon" class="idle"></div>
 
-  <!-- Top-right UI cluster -->
-  <div id="uiCluster">
-    <!-- Playlist (SoundCloud) -->
-    <div id="playlistPanel" class="panel">
-      <h3>Now Playing</h3>
-      <iframe id="soundcloudPlayer" scrolling="no" frameborder="no" allow="autoplay"
-        src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yourtrackurl&color=%23ff5500&inverse=false&auto_play=false&show_user=true">
-      </iframe>
-    </div>
+  <!-- Required containers -->
+  <div id="canvasWrap"></div>
+  <div id="fade-overlay"></div>
 
-    <!-- Genre bar -->
-    <div id="genrePanel" class="panel">
-      <div id="genreBar">
-        <span data-genre="pop" style="color:#ff77ff;">Pop</span>
-        <span data-genre="techno" style="color:#00ffff;">Techno</span>
-        <span data-genre="house" style="color:#ffff00;">House</span>
-        <span data-genre="ambient" style="color:#88ffcc;">Ambient</span>
-        <span data-genre="trance" style="color:#ff66aa;">Trance</span>
-      </div>
-    </div>
-  </div>
+  <!-- Minimal UI (safe placeholders) -->
+  <div id="ui"></div>
+  <div id="legend"><ul id="legendList"></ul></div>
+
+  <select id="genreSelect"></select>
+  <div id="leftPanel" class="hidden"></div>
+  <button id="toggleTop">Toggle</button>
+  <div id="topList"></div>
+
+  <input id="spotifyInput" placeholder="Spotify link" />
+  <button id="loadSpotify">Load</button>
+  <div id="spotifyEmbed"></div>
 
   <script src="app.js"></script>
 </body>
