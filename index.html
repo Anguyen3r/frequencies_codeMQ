@@ -2,47 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dream Bubbles</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#05060a" />
-
-  <!-- Core styles -->
+  <title>Code MQ — Dream Bubbles</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Three.js (NON-module build, matches app.js expectations) -->
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-
-  <!-- YouTube IFrame API (must be global, not deferred) -->
-  <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <!-- OrbitControls (for debugging / camera) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.min.js"></script>
+  <!-- Firebase (optional, used only if you add config) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
-
 <body>
+  <div id="fade-overlay"></div>
+  <div id="ui">
+    <button id="toggleTop">☰ Top Artists</button>
+    <div id="leftPanel" class="panel hidden">
+      <h3>Top 50 — Select Genre</h3>
+      <select id="genreSelect"></select>
+      <div id="topList"></div>
+    </div>
 
-  <!-- WebGL mount -->
-  <div id="canvasWrap"></div>
-
-  <!-- Invisible YouTube Music player -->
-  <!-- Required by YT.Player — do not remove -->
-  <div id="ytPlayer"></div>
-
-  <!-- RIGHT GLASS UI PANEL -->
-  <div id="playlistPanel">
-    <div class="playlist-inner">
-      <h2>Listening</h2>
-
-      <!-- Optional manual genre selector -->
-      <select id="genreSelect">
-        <option value="ambient">Ambient</option>
-        <option value="techno">Techno</option>
-        <option value="classical">Classical</option>
-      </select>
+    <div id="playlistPanel" class="panel">
+      <h3>Playlist</h3>
+      <input id="spotifyInput" placeholder="Paste Spotify embed or playlist URI" />
+      <button id="loadSpotify">Load</button>
+      <div id="spotifyEmbed"></div>
     </div>
   </div>
 
-  <!-- App entry -->
-  <!-- Must load AFTER Three.js + YouTube API -->
-  <script src="app.js"></script>
+  <div id="canvasWrap"></div>
 
+  <div id="legend">
+    <h4>Genres</h4>
+    <ul id="legendList"></ul>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
