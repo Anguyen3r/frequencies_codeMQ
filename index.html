@@ -3,13 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <title>Dream Bubbles</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="./style.css" />
+  <meta name="theme-color" content="#05060a" />
+
+  <!-- Core styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Three.js (NON-module build, matches app.js expectations) -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <!-- YouTube IFrame API (must be global, not deferred) -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 
 <body>
+
+  <!-- WebGL mount -->
   <div id="canvasWrap"></div>
 
-  <script type="module" src="./app.js"></script>
+  <!-- Invisible YouTube Music player -->
+  <!-- Required by YT.Player — do not remove -->
+  <div id="ytPlayer"></div>
+
+  <!-- RIGHT GLASS UI PANEL -->
+  <div id="playlistPanel">
+    <div class="playlist-inner">
+      <h2>Listening</h2>
+
+      <!-- Optional manual genre selector -->
+      <select id="genreSelect">
+        <option value="ambient">Ambient</option>
+        <option value="techno">Techno</option>
+        <option value="classical">Classical</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- App entry -->
+  <!-- Must load AFTER Three.js + YouTube API -->
+  <script src="app.js"></script>
+
 </body>
 </html>
